@@ -101,6 +101,8 @@ export interface Pin {
     title: string;
     description?: string;
     creatorId: string; // 'official' for static, or a user ID
+    creatorUsername?: string;
+    likeCount?: number;
     sourceType: PinSourceType;
     editorData?: any; // For re-editing USER_CREATION pins
 }

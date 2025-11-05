@@ -43,6 +43,7 @@ interface AppContextType {
     view: string;
     activeTab: string;
     activeBoardId: string | null;
+    activeCreatorId: string | null;
     isEditorOpen: boolean;
     selectedImageInfo: ImageInfo | null;
     showSuccessModal: boolean;
@@ -57,6 +58,7 @@ interface AppContextType {
     handleStart: () => void;
     handleTabSelect: (tab: string) => void;
     openBoard: (boardId: string) => void;
+    openCreatorProfile: (creatorId: string) => void;
     openEditor: (info: ImageInfo, index: number, scrollTop?: number, renderedCount?: number) => void;
     openViewer: (pins: Pin[], index: number, source?: { type: string, id: string } | null) => void;
     handleBackToMain: () => void;
@@ -77,13 +79,19 @@ interface AppContextType {
     // Global functions
     shareImage: (imageDataUrl: string, shareDetails?: { isAchievement?: boolean; name?: string; }) => Promise<void>;
     downloadImage: (imageDataUrl: string) => Promise<void>;
-    handleComplete: (imageDataUrl: string, metadata: {
-        sourceCategory: string;
-        fontsUsed: string[];
-        isVertical: boolean;
-        imageSrc: string;
-        editorData: any;
-    }, isPublic: boolean) => void;
+    handleComplete: (
+        imageDataUrl: string, 
+        metadata: {
+            sourceCategory: string;
+            fontsUsed: string[];
+            isVertical: boolean;
+            imageSrc: string;
+            editorData: any;
+        }, 
+        isPublic: boolean,
+        title: string,
+        description: string
+    ) => void;
     handleEditorFontChange: (fontFamily: string) => void;
     handleEditFromViewer: (pin: Pin) => void;
     handleToggleFavorite: (pin: Pin) => void;

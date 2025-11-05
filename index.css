@@ -235,6 +235,32 @@ button:focus {
 .welcome-screen p { font-size: 1rem; color: var(--text-color); line-height: 1.6; }
 .welcome-btn { margin-top: 20px; padding: 12px 24px; font-size: 1.125rem;background-color: #4CC764; }
 .welcome-btn:hover {background-color: #4CC764;}
+
+/* --- Home Screen Sort Tabs --- */
+.home-sort-tabs {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+    padding: 10px 15px;
+    background-color: var(--page-background-color);
+    border-bottom: 1px solid #eee;
+}
+.sort-tab-btn {
+    padding: 8px 20px;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #888;
+    background-color: transparent;
+    border-radius: 0;
+    position: relative;
+    border-bottom: 2px solid transparent;
+}
+.sort-tab-btn.active {
+    color: var(--primary-color);
+    font-weight: bold;
+    border-bottom-color: var(--primary-color);
+}
+
 /* --- 分類標籤 --- */
 .categories, .sub-categories { display: flex; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; flex-shrink: 0; padding: 0 15px 5px 15px; }
 .categories::-webkit-scrollbar, .sub-categories::-webkit-scrollbar { display: none; }
@@ -260,6 +286,8 @@ button:focus {
     width: 100%;
     position: relative;
     cursor: pointer;
+    overflow: hidden; /* Ensure info overlay corners are rounded */
+    border-radius: 12px;
 }
 .pin-item img {
     width: 100%;
@@ -278,6 +306,41 @@ button:focus {
     background-color: #f0f0f0;
     border-radius: 12px;
 }
+
+/* --- Pin Info Overlay on Hover (HomeScreen) --- */
+.pin-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    color: white;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    pointer-events: none; /* Allow clicks to pass through to the item */
+}
+.pin-item:hover .pin-info {
+    opacity: 1;
+}
+.pin-title {
+    font-weight: bold;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 4px;
+}
+.pin-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+}
+.pin-likes {
+    font-weight: 500;
+}
+
 
 /* --- Favorite button on Pin Item (e.g., in BoardScreen) --- */
 .pin-item .favorite-btn {
@@ -338,6 +401,9 @@ button:focus {
 .editor-header h2 {
     font-size: 1.125rem;
     margin: 0;
+    position: absolute; /* Center the title correctly */
+    left: 50%;
+    transform: translateX(-50%);
 }
 .editor-header .header-btn {
     background: none;
@@ -373,6 +439,7 @@ button:focus {
     font-size: 0.8125rem; /* 13px */
     color: var(--text-color);
     user-select: none;
+    font-weight: 500;
 }
 
 .editor-canvas-container {
@@ -709,6 +776,28 @@ input:disabled + .toggle-slider { background-color: #e0e0e0; cursor: not-allowed
 .info-modal-content .modal-body p, .info-modal-content .modal-body li { margin-bottom: 10px; }
 .info-modal-content .modal-body ul { padding-left: 20px; }
 
+/* --- Finalize Creation Modal (EditorScreen) --- */
+.finalize-form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    text-align: left;
+}
+.finalize-input {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-family: inherit;
+}
+.finalize-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(76, 199, 100, 0.2);
+}
+
+
 /* --- Premium Modal --- */
 .premium-modal-content .modal-subtitle {
     font-size: 1rem;
@@ -890,24 +979,59 @@ input:disabled + .toggle-slider { background-color: #e0e0e0; cursor: not-allowed
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 15px;
+}
+.viewer-info-block {
+    color: white;
+    text-align: center;
+    padding: 0 20px;
+    max-width: 90vw;
+}
+.viewer-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+.viewer-description {
+    font-size: 0.9375rem;
+    color: #eee;
+    line-height: 1.5;
 }
 .viewer-footer-home {
     display: flex;
     justify-content: center;
     align-items: center;
+    gap: 15px;
 }
-.viewer-edit-btn {
-    background-color: var(--primary-color);
+.viewer-edit-btn, .viewer-like-btn {
     color: white;
     border: none;
-    border-radius: 20px;
+    border-radius: 25px;
     padding: 10px 20px;
     font-size: 1rem;
     font-weight: bold;
     display: inline-flex;
     align-items: center;
+    gap: 8px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    transition: background-color 0.2s, transform 0.2s;
+}
+.viewer-edit-btn {
+    background-color: var(--primary-color);
+}
+.viewer-like-btn {
+    background-color: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+}
+.viewer-like-btn.liked {
+    background-color: #e53935;
+    border-color: #c62828;
+}
+.viewer-like-btn:disabled {
+    background-color: rgba(128, 128, 128, 0.5);
+    border-color: rgba(128, 128, 128, 0.7);
+    cursor: not-allowed;
+    transform: none;
 }
 .viewer-header.home-mode {
     justify-content: flex-end;
@@ -1164,6 +1288,92 @@ input:disabled + .toggle-slider { background-color: #e0e0e0; cursor: not-allowed
 .level-icon { font-size: 1.5rem; }
 .level-name { flex-grow: 1; }
 .level-points { font-size: 0.875rem; color: #777; }
+
+/* --- Creator Profile Screen --- */
+.creator-profile-screen .page-header {
+    position: relative;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #eee;
+}
+.creator-profile-screen .page-header .back-btn {
+    position: static;
+    transform: none;
+    padding: 0;
+    min-width: auto;
+    font-size: 1rem;
+    font-weight: 500;
+}
+.creator-info-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+.creator-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background-color: var(--primary-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+.creator-name {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+.creator-stats {
+    font-size: 0.9375rem;
+    color: #666;
+}
+
+/* --- Clickable Creator Buttons --- */
+.pin-creator-btn {
+    background: none;
+    border: none;
+    padding: 2px 4px;
+    margin: -2px -4px; /* Offset padding */
+    color: #eee;
+    font-size: 0.75rem;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: background-color 0.2s;
+    pointer-events: all;
+}
+.pin-creator-btn:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+.viewer-creator-btn {
+    background: none;
+    border: none;
+    color: #ccc;
+    font-size: 0.875rem;
+    margin-top: 10px;
+    padding: 5px 10px;
+    border-radius: 15px;
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+}
+.viewer-creator-btn:hover {
+    background-color: rgba(255, 255, 255, 0.15);
+    color: #fff;
+}
+/* Adjustments for PinItem in CreatorProfileScreen */
+.creator-profile-screen .pin-info .pin-meta {
+    justify-content: flex-end; /* Align likes to the right since there's no creator name */
+}
 
 /* --- 高對比度模式 (High Contrast Mode) --- */
 html.high-contrast {

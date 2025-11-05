@@ -9,6 +9,8 @@
  */
 import React from 'react';
 import { useAppContext } from './contexts/AppContext.tsx';
+import { useAuth } from './src/contexts/AuthContext.tsx';
+import { supabase } from './src/supabaseClient.ts';
 import { Pin } from './types.ts';
 import { MY_FAVORITES_BOARD_ID } from './data.ts';
 
@@ -31,13 +33,19 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         handleRemovePinFromBoard,
         handleToggleFavorite,
         handleTabSelect,
+        openCreatorProfile,
     } = useAppContext();
+    const { user } = useAuth();
 
     const [currentIndex, setCurrentIndex] = useState(startIndex);
     const [animationClass, setAnimationClass] = useState('viewer-image-enter');
     const isAnimating = useRef(false);
     const touchStartX = useRef(0);
     const currentPin: Pin | undefined = pins[currentIndex];
+
+    const [likeCount, setLikeCount] = useState(currentPin?.likeCount || 0);
+    const [isLiked, setIsLiked] = useState(false);
+    const [isLikeLoading, setIsLikeLoading] = useState(true);
 
     const isFavorited = useMemo(() => {
         if (!currentPin) return false;
@@ -49,6 +57,80 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         console.log('CreationViewer rendered with props:', { pins, startIndex, viewerSource });
         setCurrentIndex(startIndex);
     }, [pins, startIndex, viewerSource]);
+
+    useEffect(() => {
+        // Reset state on pin change
+        setLikeCount(currentPin?.likeCount || 0);
+        setIsLiked(false);
+        setIsLikeLoading(true);
+
+        if (!currentPin || !user) {
+            setIsLikeLoading(false);
+            return;
+        }
+
+        const checkLikeStatus = async () => {
+            const { data, error } = await supabase
+                .from('likes')
+                .select('creation_id')
+                .eq('creation_id', currentPin.pinId)
+                .eq('user_id', user.id)
+                .maybeSingle();
+            
+            if (error) {
+                console.error('Error checking like status', error);
+            } else {
+                setIsLiked(!!data);
+            }
+            setIsLikeLoading(false);
+        };
+
+        checkLikeStatus();
+    }, [currentPin, user]);
+    
+    const handleLikeToggle = async () => {
+        if (isLikeLoading || !currentPin || !user) {
+            if (!user) alert('請先登入才能按讚喔！');
+            return;
+        }
+
+        setIsLikeLoading(true);
+
+        // Optimistic update
+        const originalIsLiked = isLiked;
+        const originalLikeCount = likeCount;
+
+        const newIsLiked = !isLiked;
+        const newLikeCount = newIsLiked ? likeCount + 1 : likeCount - 1;
+
+        setIsLiked(newIsLiked);
+        setLikeCount(newLikeCount);
+
+        try {
+            if (newIsLiked) {
+                // Add a like
+                const { error } = await supabase.from('likes').insert({
+                    creation_id: currentPin.pinId,
+                    user_id: user.id,
+                });
+                if (error) throw error;
+            } else {
+                // Remove a like
+                const { error } = await supabase.from('likes').delete()
+                    .eq('creation_id', currentPin.pinId)
+                    .eq('user_id', user.id);
+                if (error) throw error;
+            }
+        } catch (error) {
+            console.error('Failed to update like status', error);
+            // Revert on error
+            setIsLiked(originalIsLiked);
+            setLikeCount(originalLikeCount);
+            alert('操作失敗，請稍後再試。');
+        } finally {
+            setIsLikeLoading(false);
+        }
+    };
     
     const handleNavigation = (direction: 'next' | 'prev') => {
         if (isAnimating.current || pins.length <= 1) return;
@@ -100,6 +182,13 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         }
     };
     
+    const handleCreatorClick = () => {
+        if (currentPin) {
+            onClose();
+            setTimeout(() => openCreatorProfile(currentPin.creatorId), 50);
+        }
+    };
+
     const handleClose = () => {
         onClose();
         // FIX: Ensure that when closing from a favorites board, the user is returned
@@ -215,7 +304,17 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
             
             React.createElement('div', { className: 'viewer-home-layout' }, 
                 imageWrapper,
+                currentPin && React.createElement('div', { className: 'viewer-info-block' },
+                    React.createElement('h3', { className: 'viewer-title' }, currentPin.title),
+                    currentPin.description && React.createElement('p', { className: 'viewer-description' }, currentPin.description),
+                    React.createElement('button', { className: 'viewer-creator-btn', onClick: handleCreatorClick }, `由 ${currentPin.creatorUsername} 創作`)
+                ),
                 React.createElement('div', { className: 'viewer-footer-home' },
+                    React.createElement('button', { 
+                        className: `viewer-like-btn ${isLiked ? 'liked' : ''}`, 
+                        onClick: handleLikeToggle, 
+                        disabled: isLikeLoading || !user 
+                    }, `❤️ ${likeCount}`),
                     canEdit && React.createElement('button', { className: 'viewer-edit-btn', onClick: handleEdit },
                         React.createElement('span', null, '編輯')
                     )

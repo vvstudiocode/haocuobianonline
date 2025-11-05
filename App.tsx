@@ -37,6 +37,7 @@ import AchievementModal from './AchievementModal.tsx';
 import SearchScreen from './SearchScreen.tsx';
 import SaveToBoardModal from './SaveToBoardModal.tsx';
 import BoardScreen from './BoardScreen.tsx';
+import CreatorProfileScreen from './CreatorProfileScreen.tsx';
 // FIX: Import `MY_CREATIONS_KEY` to resolve reference error.
 import { MY_CREATIONS_KEY, MY_FAVORITES_BOARD_ID, MY_FAVORITES_BOARD_NAME, NOTIFICATION_SETTINGS_KEY, ACCESSIBILITY_SETTINGS_KEY, USER_PREMIUM_STATUS_KEY, PINS_KEY, BOARDS_KEY, CATEGORIES, convertCategoriesToPins, MY_CREATIONS_BOARD_ID } from './data.ts';
 import { Capacitor } from '@capacitor/core';
@@ -181,6 +182,8 @@ const AppContent = () => {
                     setNewlyUnlocked(prev => prev.slice(1));
                 } else if (pinToSave) {
                     setPinToSave(null);
+                } else if (view === 'creator-profile') {
+                    navigationData.handleTabSelect(activeTab);
                 } else if (view === 'board') {
                     navigationData.handleTabSelect('profile');
                 } else if (view === 'settings' || view === 'honor-wall') {
@@ -329,7 +332,9 @@ const AppContent = () => {
             imageSrc: string;
             editorData: any;
         },
-        isPublic: boolean
+        isPublic: boolean,
+        title: string,
+        description: string
     ) => {
         if (!user) {
             alert('請先登入以儲存您的作品。');
@@ -371,7 +376,8 @@ const AppContent = () => {
                 .from('creations')
                 .insert({
                     user_id: user.id,
-                    title: '我的創作', // Using a default title for now
+                    title: title.trim() || '我的創作',
+                    description: description.trim() || null,
                     image_url: imageUrl,
                     is_public: isPublic,
                     editor_data: metadata.editorData,
@@ -649,6 +655,7 @@ const AppContent = () => {
             React.createElement('div', { className: 'app-container' },
                 view === 'main' && renderMainContent(),
                 view === 'board' && React.createElement(BoardScreen, null),
+                view === 'creator-profile' && React.createElement(CreatorProfileScreen, null),
                 view === 'settings' && React.createElement(SettingsScreen, { onBack: () => navigationData.handleTabSelect('profile') }),
                 view === 'honor-wall' && React.createElement(HonorWallScreen, { onBack: () => navigationData.handleTabSelect('profile') }),
                 isEditorOpen && selectedImageInfo && React.createElement(EditorScreen, {

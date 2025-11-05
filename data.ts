@@ -110,9 +110,14 @@ export const ACHIEVEMENTS_KEY = 'hucuobian_achievements_v2';
 export const NOTIFICATION_SETTINGS_KEY = 'hucuobian_notification_settings_v1';
 export const ACCESSIBILITY_SETTINGS_KEY = 'hucuobian_accessibility_settings_v1';
 export const USER_PREMIUM_STATUS_KEY = 'hucuobian_premium_status_v1';
-export const MY_FAVORITES_BOARD_ID = 'my-favorites-board';
 export const MY_FAVORITES_BOARD_NAME = '我的最愛';
-export const MY_CREATIONS_BOARD_ID = 'my-creations-board';
+
+// --- 【重要更新】 ---
+// 為了配合資料庫 id 欄位升級為 uuid，這裡提供兩個固定的、有效的 UUID。
+// 您需要在 Supabase 的 boards 表格中，為每個使用者建立使用這兩個 ID 的圖版。
+// 例如，透過 Supabase 的 Edge Function，在使用者首次登入時自動為他們建立這兩筆資料。
+export const MY_FAVORITES_BOARD_ID = 'e2f7a880-9a35-4338-8531-93337a72b534';
+export const MY_CREATIONS_BOARD_ID = 'c81f21d2-0b13-4a81-9b96-62d294a5e01b';
 
 
 // --- Editor Options ---

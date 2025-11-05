@@ -10,13 +10,19 @@ const { useState, useEffect, useRef } = React;
 interface EditorScreenProps {
     imageInfo: ImageInfo;
     onClose: () => void;
-    onComplete: (dataUrl: string, metadata: {
-        sourceCategory: string;
-        fontsUsed: string[];
-        isVertical: boolean;
-        imageSrc: string;
-        editorData: any;
-    }, isPublic: boolean) => void;
+    onComplete: (
+        dataUrl: string, 
+        metadata: {
+            sourceCategory: string;
+            fontsUsed: string[];
+            isVertical: boolean;
+            imageSrc: string;
+            editorData: any;
+        }, 
+        isPublic: boolean,
+        title: string,
+        description: string
+    ) => void;
     onFontChange: (fontFamily: string) => void;
 }
 
@@ -55,7 +61,12 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
     const [strokeWidth, setStrokeWidth] = useState(0);
     const [strokeColor, setStrokeColor] = useState('#000000');
     const [isVertical, setIsVertical] = useState(false);
-    const [isPublic, setIsPublic] = useState(false);
+    
+    // Finalize Modal State
+    const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+    const [creationTitle, setCreationTitle] = useState('');
+    const [creationDesc, setCreationDesc] = useState('');
+    const [isPublic, setIsPublic] = useState(true);
 
     const [isGreetingsModalOpen, setIsGreetingsModalOpen] = useState(false);
     const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
@@ -591,7 +602,7 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
         setIsVertical(newIsVertical);
     };
 
-    const handleCompleteClick = () => {
+    const handleFinalizeAndComplete = () => {
         const canvas = fabricCanvasRef.current;
         if (!canvas) return;
         canvas.discardActiveObject();
@@ -618,7 +629,7 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
             editorData: canvas.toJSON(),
         };
 
-        onComplete(dataURL, metadata, isPublic);
+        onComplete(dataURL, metadata, isPublic, creationTitle, creationDesc);
     };
     
     const handleGreetingSelect = (greeting: string) => {
@@ -828,6 +839,47 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
             )
         )
     );
+    
+    const renderFinalizeModal = () => (
+        React.createElement('div', { className: 'modal-overlay', onClick: () => setShowFinalizeModal(false) },
+            React.createElement('div', { className: 'modal-content', onClick: (e: React.MouseEvent) => e.stopPropagation() },
+                React.createElement('h2', { className: 'modal-title' }, '儲存作品'),
+                React.createElement('div', { className: 'finalize-form' },
+                    React.createElement('input', {
+                        type: 'text',
+                        placeholder: '作品標題 (選填)',
+                        className: 'finalize-input',
+                        value: creationTitle,
+                        onChange: (e) => setCreationTitle(e.target.value),
+                        maxLength: 50
+                    }),
+                    React.createElement('textarea', {
+                        placeholder: '作品說明 (選填)',
+                        className: 'finalize-input',
+                        rows: 3,
+                        value: creationDesc,
+                        onChange: (e) => setCreationDesc(e.target.value),
+                        maxLength: 300
+                    }),
+                    React.createElement('div', { className: 'public-toggle-wrapper', onClick: () => setIsPublic(p => !p), style: { padding: '10px 0'} },
+                        React.createElement('label', { className: 'public-toggle-label' }, '公開分享到「首頁動態」'),
+                        React.createElement('label', { className: 'toggle-switch' },
+                            React.createElement('input', {
+                                type: 'checkbox',
+                                checked: isPublic,
+                                readOnly: true,
+                            }),
+                            React.createElement('span', { className: 'toggle-slider' })
+                        )
+                    )
+                ),
+                React.createElement('div', { className: 'modal-buttons' },
+                    React.createElement('button', { className: 'modal-btn primary', onClick: handleFinalizeAndComplete }, '確認儲存'),
+                    React.createElement('button', { className: 'modal-btn secondary', onClick: () => setShowFinalizeModal(false) }, '返回編輯')
+                )
+            )
+        )
+    );
 
 
     const renderDrawingControls = () => (
@@ -910,21 +962,8 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
         React.createElement('div', { className: `screen editor-screen ${editorMode ? 'editing-active' : ''}` },
             React.createElement('div', { className: 'editor-header' },
                 React.createElement('button', { className: 'header-btn', onClick: onClose }, '取消'),
-                React.createElement('div', { className: 'editor-header-center' },
-                    React.createElement('h2', null, '編輯創作'),
-                    React.createElement('div', { className: 'public-toggle-wrapper', onClick: () => setIsPublic(p => !p) },
-                        React.createElement('label', { className: 'public-toggle-label' }, '公開分享此作品'),
-                        React.createElement('label', { className: 'toggle-switch small' },
-                            React.createElement('input', {
-                                type: 'checkbox',
-                                checked: isPublic,
-                                readOnly: true,
-                            }),
-                            React.createElement('span', { className: 'toggle-slider' })
-                        )
-                    )
-                ),
-                React.createElement('button', { className: 'header-btn primary', onClick: handleCompleteClick }, '完成')
+                React.createElement('h2', null, '編輯創作'),
+                React.createElement('button', { className: 'header-btn primary', onClick: () => setShowFinalizeModal(true) }, '完成')
             ),
             React.createElement('div', { className: 'editor-canvas-container' },
                  React.createElement('div', { className: 'canvas-aspect-wrapper' },
@@ -978,7 +1017,8 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
             ),
             isGreetingsModalOpen && renderGreetingsModal(),
             isFontsModalOpen && renderFontsModal(),
-            isTemplatesModalOpen && renderTemplatesModal()
+            isTemplatesModalOpen && renderTemplatesModal(),
+            showFinalizeModal && renderFinalizeModal()
         )
     );
 };

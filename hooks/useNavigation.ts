@@ -14,6 +14,7 @@ export const useNavigation = () => {
     const [view, setView] = useState(() => getFromStorage(WELCOME_SEEN_KEY, false) ? 'main' : 'welcome');
     const [activeTab, setActiveTab] = useState('home');
     const [activeBoardId, setActiveBoardId] = useState<string | null>(null);
+    const [activeCreatorId, setActiveCreatorId] = useState<string | null>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
     const [selectedImageInfo, setSelectedImageInfo] = useState<ImageInfo | null>(null);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -37,14 +38,18 @@ export const useNavigation = () => {
             setView('main');
             setActiveTab(tab);
         }
-        if (activeBoardId) {
-            setActiveBoardId(null);
-        }
-    }, [activeBoardId]);
+        if (activeBoardId) setActiveBoardId(null);
+        if (activeCreatorId) setActiveCreatorId(null);
+    }, [activeBoardId, activeCreatorId]);
     
     const openBoard = useCallback((boardId: string) => {
         setView('board');
         setActiveBoardId(boardId);
+    }, []);
+
+    const openCreatorProfile = useCallback((creatorId: string) => {
+        setView('creator-profile');
+        setActiveCreatorId(creatorId);
     }, []);
     
     const openEditor = useCallback((info: ImageInfo, index: number, scrollTop: number = 0, renderedCount: number = 16) => {
@@ -71,6 +76,7 @@ export const useNavigation = () => {
         setFinalImage(null);
         setShowSuccessModal(false);
         setActiveBoardId(null);
+        setActiveCreatorId(null);
         setViewerSource(null);
         setView('main');
     }, []);
@@ -84,6 +90,7 @@ export const useNavigation = () => {
         view,
         activeTab,
         activeBoardId,
+        activeCreatorId,
         isEditorOpen,
         selectedImageInfo,
         showSuccessModal,
@@ -97,6 +104,7 @@ export const useNavigation = () => {
         handleStart,
         handleTabSelect,
         openBoard,
+        openCreatorProfile,
         openEditor,
         openViewer,
         handleBackToMain,
