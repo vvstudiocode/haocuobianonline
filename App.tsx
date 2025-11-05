@@ -1,0 +1,691 @@
+/**
+ * @file App.tsx
+ * @description
+ * 應用程式的根元件，新增了首次啟動時自動設定提醒的邏輯。
+ * - **【強化】** `useStorage` 鉤子的預設值被修改為 `{ enabled: true, time: '06:00' }`，為新使用者預設開啟提醒功能。
+ * - **【核心功能】** 新增 `handleStartApp` 函式。此函式會在使用者點擊歡迎畫面的「開始使用」按鈕時觸發。
+ * - **【流程】** `handleStartApp` 的執行流程如下
+ * 1.  呼叫原有的 `navigationData.handleStart()`，將畫面從歡迎頁切換到主畫面。
+ * 2.  立即檢查並請求本地通知的權限。
+ * 3.  如果使用者**同意授權**：
+ * - 會自動呼叫 `scheduleDailyReminder`，為使用者排程好未來三天的早上 6:00 提醒。
+ * - 彈出一個友善的提示，告知使用者此預設功能，並引導他們可以在設定頁面中修改。
+ * 4.  如果使用者**拒絕授權**：
+ * - 會在背景默默地將提醒設定更新為 `enabled: false`，確保設定頁面的開關狀態與實際權限一致。
+ * - **【最佳化】** 這個設計讓 App 在使用者同意時能「主動服務」，在使用者拒絕時能「安靜配合」，提供了流暢且尊重使用者選擇的初次體驗。
+ */
+import React from 'react';
+import './index.css';
+import { AppProvider } from './contexts/AppContext.tsx';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext.tsx';
+import { supabase } from './src/supabaseClient.ts';
+import { useStorage } from './hooks/useStorage.ts';
+import { useUserProfile } from './hooks/useUserProfile.ts';
+import { useNavigation } from './hooks/useNavigation.ts';
+import { useNotifications } from './hooks/useNotifications.ts';
+import { useInAppPurchases } from './hooks/useInAppPurchases.ts';
+import WelcomeScreen from './WelcomeScreen.tsx';
+import HomeScreen from './HomeScreen.tsx';
+import ProfileScreen from './ProfileScreen.tsx';
+import SettingsScreen from './SettingsScreen.tsx';
+import HonorWallScreen from './HonorWallScreen.tsx';
+import BottomNavBar from './BottomNavBar.tsx';
+import EditorScreen from './EditorScreen.tsx';
+import SuccessModal from './SuccessModal.tsx';
+import CreationViewer from './CreationViewer.tsx';
+import AchievementModal from './AchievementModal.tsx';
+import SearchScreen from './SearchScreen.tsx';
+import SaveToBoardModal from './SaveToBoardModal.tsx';
+import BoardScreen from './BoardScreen.tsx';
+// FIX: Import `MY_CREATIONS_KEY` to resolve reference error.
+import { MY_CREATIONS_KEY, MY_FAVORITES_BOARD_ID, MY_FAVORITES_BOARD_NAME, NOTIFICATION_SETTINGS_KEY, ACCESSIBILITY_SETTINGS_KEY, USER_PREMIUM_STATUS_KEY, PINS_KEY, BOARDS_KEY, CATEGORIES, convertCategoriesToPins, MY_CREATIONS_BOARD_ID } from './data.ts';
+import { Capacitor } from '@capacitor/core';
+import { LocalNotifications } from '@capacitor/local-notifications';
+import { Share } from '@capacitor/share';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { App as CapacitorApp } from '@capacitor/app';
+import { ImageInfo, Pin, Board, User } from './types.ts';
+import { getFromStorage } from './storage.ts';
+
+// FIX: Define AccessibilitySettings type to ensure type safety with useStorage.
+// This resolves a type mismatch with the AppContext, where accessibilitySettings.fontSize
+// was being inferred as `string` instead of the required literal type '"standard" | "larger" | "largest"'.
+interface AccessibilitySettings {
+    fontSize: 'standard' | 'larger' | 'largest';
+    highContrast: boolean;
+}
+
+const { useCallback, useEffect, useState } = React;
+
+const urlToBase64 = (url: string): Promise<string> => {
+    return new Promise(async (resolve, reject) => {
+        if (url.startsWith('data:image')) {
+            resolve(url.split(',')[1]);
+            return;
+        }
+        try {
+            const response = await fetch(url);
+            const blob = await response.blob();
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                resolve(dataUrl.split(',')[1]);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        } catch (error) {
+            console.error('Error converting URL to Base64:', error);
+            reject(error);
+        }
+    });
+};
+
+
+const AppContent = () => {
+    console.log('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+    const { user } = useAuth();
+    // These local states will be gradually phased out.
+    const [creations, setCreations] = useStorage<string[]>(MY_CREATIONS_KEY, []);
+    const [pins, setPins] = useStorage<Pin[]>(PINS_KEY, []);
+    const [boards, setBoards] = useStorage<Board[]>(BOARDS_KEY, []);
+    const [notificationSettings, setNotificationSettings] = useStorage(NOTIFICATION_SETTINGS_KEY, { enabled: true, time: '06:00' });
+    const [accessibilitySettings, setAccessibilitySettings] = useStorage<AccessibilitySettings>(ACCESSIBILITY_SETTINGS_KEY, { fontSize: 'largest', highContrast: false });
+    const [isPremiumUser, setIsPremiumUser] = useStorage<boolean>(USER_PREMIUM_STATUS_KEY, false);
+    const [pinToSave, setPinToSave] = useState<Pin | null>(null);
+
+    const userProfileData = useUserProfile();
+    const navigationData = useNavigation();
+    const notificationHandlers = useNotifications();
+    const iapHandlers = useInAppPurchases(setIsPremiumUser);
+
+    const { view, activeTab, isEditorOpen, finalImage, showSuccessModal, showCreationViewer, selectedImageInfo, setFinalImage, setShowSuccessModal } = navigationData;
+    const { userProfile, newlyUnlocked, setNewlyUnlocked, processAchievement } = userProfileData;
+
+    const handleNotificationClick = useCallback(() => {
+        navigationData.handleTabSelect('home');
+    }, [navigationData]);
+
+    useEffect(() => {
+        const initializeApp = async () => {
+            if (Capacitor.isPluginAvailable('LocalNotifications') && Capacitor.isNativePlatform()) {
+                await LocalNotifications.createChannel({
+                    id: 'reminders',
+                    name: '每日提醒',
+                    description: '用於早安問候的每日提醒',
+                    importance: 4,
+                    visibility: 1,
+                    lights: true,
+                    vibration: true,
+                });
+            }
+            
+            notificationHandlers.initNotificationListeners(handleNotificationClick);
+            if (view !== 'welcome') {
+                notificationHandlers.reaffirmDailyReminder(notificationSettings);
+            }
+            
+            // Initialize In-App Purchases
+            iapHandlers.initPurchases();
+        };
+
+        initializeApp();
+
+        return () => {
+            notificationHandlers.removeNotificationListeners();
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [view]);
+
+    useEffect(() => {
+        console.log('App.tsx - showCreationViewer state changed:', showCreationViewer);
+    }, [showCreationViewer]);
+
+    // --- Accessibility Settings Applier ---
+    useEffect(() => {
+        const root = document.documentElement;
+        // Clean up previous classes
+        root.classList.remove('font-size-larger', 'font-size-largest', 'high-contrast');
+
+        // Apply font size class
+        if (accessibilitySettings.fontSize === 'larger') {
+            root.classList.add('font-size-larger');
+        } else if (accessibilitySettings.fontSize === 'largest') {
+            root.classList.add('font-size-largest');
+        }
+
+        // Apply high contrast class
+        if (accessibilitySettings.highContrast) {
+            root.classList.add('high-contrast');
+        }
+    }, [accessibilitySettings]);
+
+    // --- Android Back Button Handler ---
+    useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            const backButtonHandler = () => {
+                const { 
+                    isEditorOpen, 
+                    showCreationViewer, 
+                    showSuccessModal, 
+                    view, 
+                    activeTab 
+                } = navigationData;
+    
+                if (isEditorOpen) {
+                    navigationData.handleBackToMain();
+                } else if (showCreationViewer) {
+                    navigationData.setShowCreationViewer(false);
+                } else if (showSuccessModal) {
+                    navigationData.handleGoHomeFromModal();
+                } else if (newlyUnlocked.length > 0) {
+                    setNewlyUnlocked(prev => prev.slice(1));
+                } else if (pinToSave) {
+                    setPinToSave(null);
+                } else if (view === 'board') {
+                    navigationData.handleTabSelect('profile');
+                } else if (view === 'settings' || view === 'honor-wall') {
+                    navigationData.handleTabSelect('profile');
+                } else if (activeTab !== 'home') {
+                    navigationData.handleTabSelect('home');
+                } else {
+                    CapacitorApp.exitApp();
+                }
+            };
+            
+            const listenerPromise = CapacitorApp.addListener('backButton', backButtonHandler);
+
+            return () => {
+                listenerPromise.then(listener => listener.remove());
+            };
+        }
+        return () => {};
+    }, [navigationData, newlyUnlocked, setNewlyUnlocked, pinToSave]);
+    
+    // --- Phase 1: Initialize Pins from Static Categories ---
+    useEffect(() => {
+        // This is now purely for legacy/offline mode.
+        // The main content is fetched from Supabase.
+        const existingPins = getFromStorage(PINS_KEY, []);
+        if (existingPins.length === 0) {
+            console.log('Initializing local pins from static categories for offline fallback...');
+            const staticPins = convertCategoriesToPins(CATEGORIES);
+            setPins(staticPins);
+        }
+    }, [setPins]);
+
+    const handleStartApp = useCallback(async () => {
+        navigationData.handleStart();
+
+        if (Capacitor.isPluginAvailable('LocalNotifications')) {
+            let status = await notificationHandlers.checkPermissions();
+            if (status.display === 'prompt') {
+                status = await notificationHandlers.requestPermissions();
+            }
+
+            if (status.display === 'granted') {
+                const success = await notificationHandlers.scheduleDailyReminder(6, 0);
+                if (success) {
+                    setTimeout(() => {
+                        alert('已為您預設開啟每日 06:00 的早安提醒！\n\n您隨時可以在「我」>「設定」頁面中調整或關閉。');
+                    }, 1500);
+                }
+            } else {
+                setNotificationSettings({ enabled: false, time: '06:00' });
+            }
+        }
+    }, [navigationData, notificationHandlers, setNotificationSettings]);
+
+    const shareImage = useCallback(async (
+        imageUrl: string,
+        shareDetails: { isAchievement?: boolean; name?: string } = { isAchievement: false }
+    ) => {
+        try {
+            const text = shareDetails.isAchievement && shareDetails.name
+                ? `我解鎖了「${shareDetails.name}」！快來『好厝邊』看看吧！`
+                : '與您分享我的溫馨創作！';
+
+            if (Capacitor.isPluginAvailable('Share')) {
+                const base64Data = await urlToBase64(imageUrl);
+                const fileName = `share_${Date.now()}.jpeg`;
+                
+                await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64Data,
+                    directory: Directory.Cache,
+                });
+    
+                const { uri } = await Filesystem.getUri({
+                    directory: Directory.Cache,
+                    path: fileName,
+                });
+
+                await Share.share({
+                    title: '來自「好厝邊」的分享',
+                    text: text,
+                    url: uri,
+                    dialogTitle: '分享',
+                });
+            } else if (navigator.share) {
+                const response = await fetch(imageUrl);
+                const blob = await response.blob();
+                const file = new File([blob], 'creation.jpg', { type: blob.type });
+
+                await navigator.share({
+                    title: '來自「好厝邊」的分享',
+                    text: text,
+                    files: [file],
+                });
+            } else {
+                alert('您的裝置不支援分享功能。');
+                return;
+            }
+
+            if (!shareDetails.isAchievement) {
+                processAchievement('share');
+                navigationData.handleGoHomeFromModal();
+            }
+        } catch (error: any) {
+             const errorMessage = (error && error.message) ? String(error.message) : '';
+            if (error.name !== 'AbortError' && !errorMessage.toLowerCase().includes('cancel')) {
+                 console.error('分享失敗:', error);
+                 alert('分享失敗，請稍後再試。');
+            }
+        }
+    }, [processAchievement, navigationData]);
+
+    const downloadImage = useCallback(async (imageUrl: string) => {
+        try {
+            if (Capacitor.isNativePlatform()) {
+                const base64Data = await urlToBase64(imageUrl);
+                const fileName = `haocuobian_${Date.now()}.jpeg`;
+                
+                await Filesystem.writeFile({
+                    path: fileName,
+                    data: base64Data,
+                    directory: Directory.Documents,
+                    recursive: true,
+                });
+                
+                alert('圖片已儲存至您裝置的文件資料夾中。');
+            } else {
+                const link = document.createElement('a');
+                link.href = imageUrl;
+                link.download = `haocuobian_${Date.now()}.jpeg`;
+                link.click();
+            }
+            navigationData.handleGoHomeFromModal();
+        } catch (error) {
+            console.error('下載失敗:', error);
+            alert('下載失敗。請確認您已授權App儲存照片的權限。');
+        }
+    }, [navigationData]);
+
+    const handleComplete = useCallback(async (
+        imageDataUrl: string, 
+        metadata: {
+            sourceCategory: string;
+            fontsUsed: string[];
+            isVertical: boolean;
+            imageSrc: string;
+            editorData: any;
+        },
+        isPublic: boolean
+    ) => {
+        if (!user) {
+            alert('請先登入以儲存您的作品。');
+            navigationData.handleTabSelect('profile');
+            return;
+        }
+
+        // TODO: Implement a proper loading indicator
+        alert('正在儲存您的作品，請稍候...');
+
+        try {
+            // 1. Convert data URL to Blob
+            const response = await fetch(imageDataUrl);
+            const blob = await response.blob();
+            
+            // 2. Upload image to Supabase Storage
+            const fileName = `${user.id}/${Date.now()}.jpeg`;
+            const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('creations-images')
+                .upload(fileName, blob, {
+                    cacheControl: '3600',
+                    upsert: false,
+                    contentType: 'image/jpeg',
+                });
+
+            if (uploadError) {
+                throw uploadError;
+            }
+
+            // 3. Get public URL
+            const { data: urlData } = supabase.storage
+                .from('creations-images')
+                .getPublicUrl(uploadData.path);
+            
+            const imageUrl = urlData.publicUrl;
+
+            // 4. Write metadata to 'creations' table
+            const { data: creationData, error: insertError } = await supabase
+                .from('creations')
+                .insert({
+                    user_id: user.id,
+                    title: '我的創作', // Using a default title for now
+                    image_url: imageUrl,
+                    is_public: isPublic,
+                    editor_data: metadata.editorData,
+                })
+                .select()
+                .single();
+
+            if (insertError) {
+                throw insertError;
+            }
+
+            // 5. Automatically add the new creation to the "My Creations" board
+            if (creationData) {
+                await supabase.from('board_pins').insert({
+                    board_id: MY_CREATIONS_BOARD_ID,
+                    creation_id: creationData.id,
+                    user_id: user.id,
+                });
+            }
+
+            setFinalImage(imageUrl);
+            setShowSuccessModal(true);
+            
+            processAchievement('create', metadata);
+            
+            if (metadata.fontsUsed && metadata.fontsUsed.length > 0) {
+                metadata.fontsUsed.forEach((font: string) => {
+                     processAchievement('use_font', { fontFamily: font });
+                });
+            }
+        } catch (error) {
+            console.error('儲存作品失敗:', error);
+            alert('儲存作品失敗，請稍後再試。');
+        }
+    }, [user, navigationData, processAchievement, setFinalImage, setShowSuccessModal]);
+    
+    const handleEditorFontChange = useCallback((fontFamily: string) => {
+        processAchievement('use_font', { fontFamily });
+    }, [processAchievement]);
+
+    const handleDeletePin = async (pinIdToDelete: string) => {
+        if (!user) return;
+        if (!window.confirm('確定要永久刪除這張創作嗎？此操作也會將它從所有圖版中移除。')) return;
+
+        try {
+            // 1. Find the creation to get the image URL
+            const { data: creation, error: fetchError } = await supabase
+                .from('creations')
+                .select('image_url')
+                .eq('id', pinIdToDelete)
+                .eq('user_id', user.id)
+                .single();
+            
+            if (fetchError || !creation) {
+                throw new Error('找不到要刪除的作品或您沒有權限。');
+            }
+            
+            // 2. Delete the image from Storage
+            const imageUrl = creation.image_url;
+            const path = new URL(imageUrl).pathname.split('/creations-images/')[1];
+            if (path) {
+                const { error: storageError } = await supabase.storage.from('creations-images').remove([path]);
+                if (storageError) console.error('刪除雲端圖片失敗:', storageError.message); // Log but continue
+            }
+            
+            // 3. Delete the creation record from the 'creations' table
+            // RLS and CASCADE should handle deleting from 'board_pins'
+            const { error: deleteError } = await supabase
+                .from('creations')
+                .delete()
+                .eq('id', pinIdToDelete);
+
+            if (deleteError) throw deleteError;
+            
+            alert('刪除成功！');
+            navigationData.setShowCreationViewer(false);
+            // We can add a mechanism to trigger a refresh on the board/profile screen here
+        } catch (error: any) {
+            console.error('刪除作品失敗:', error);
+            alert(`刪除作品失敗: ${error.message}`);
+        }
+    };
+
+    const handleRemovePinFromBoard = useCallback(async (pinId: string, boardId: string) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('board_pins')
+                .delete()
+                .eq('board_id', boardId)
+                .eq('creation_id', pinId)
+                .eq('user_id', user.id);
+            if (error) throw error;
+            navigationData.setShowCreationViewer(false);
+        } catch (error) {
+            console.error('從圖版移除 Pin 失敗:', error);
+            alert('從圖版移除失敗。');
+        }
+    }, [user, navigationData]);
+
+    const handleEditFromViewer = useCallback((pin: Pin) => {
+        navigationData.setShowCreationViewer(false);
+        // Assuming pin.editorData exists. For static images, it might be empty.
+        const info: ImageInfo = { 
+            src: pin.imageUrl, 
+            isCreation: false, 
+            sourceCategory: 'edit-pin', 
+            editorData: pin.editorData 
+        };
+        navigationData.openEditor(info, -1, 0);
+    }, [navigationData]);
+
+    const handleCreateBoard = useCallback(async (boardName: string): Promise<Board | null> => {
+        if (!user) return null;
+
+        const { data, error } = await supabase
+            .from('boards')
+            .insert({ user_id: user.id, name: boardName.trim() })
+            .select()
+            .single();
+
+        if (error) {
+            console.error('建立圖版失敗:', error);
+            alert('建立圖版失敗。');
+            return null;
+        }
+        
+        return data ? {
+            boardId: data.id,
+            name: data.name,
+            coverPinUrl: data.cover_pin_url,
+            pinIds: []
+        } : null;
+    }, [user]);
+
+    const handleSavePin = useCallback(async (pin: Pin, boardId: string) => {
+        if (!user) return;
+
+        try {
+             // 1. Insert into board_pins
+            const { error: insertError } = await supabase.from('board_pins').insert({
+                board_id: boardId,
+                creation_id: pin.pinId,
+                user_id: user.id
+            });
+            if (insertError) throw insertError;
+
+            // 2. Check if the board has a cover and update if it doesn't
+            const { data: boardData } = await supabase
+                .from('boards')
+                .select('cover_pin_url')
+                .eq('id', boardId)
+                .single();
+            
+            if (boardData && !boardData.cover_pin_url) {
+                const { error: updateError } = await supabase
+                    .from('boards')
+                    .update({ cover_pin_url: pin.imageUrl })
+                    .eq('id', boardId);
+                if (updateError) console.error('更新圖版封面失敗:', updateError);
+            }
+
+            setPinToSave(null);
+            alert('成功儲存！');
+
+        } catch (error) {
+            console.error('儲存 Pin 失敗:', error);
+            alert('儲存失敗，該 Pin 可能已存在於圖版中。');
+        }
+    }, [user]);
+
+    const handleToggleFavorite = useCallback(async (pin: Pin) => {
+        if (!user) return;
+        try {
+            // Check if it's already a favorite
+            const { data, error: checkError } = await supabase
+                .from('board_pins')
+                .select('id')
+                .eq('board_id', MY_FAVORITES_BOARD_ID)
+                .eq('creation_id', pin.pinId)
+                .eq('user_id', user.id)
+                .maybeSingle();
+
+            if (checkError) throw checkError;
+
+            if (data) { // It exists, so unfavorite (delete)
+                const { error: deleteError } = await supabase
+                    .from('board_pins')
+                    .delete()
+                    .eq('id', data.id);
+                if (deleteError) throw deleteError;
+            } else { // It doesn't exist, so favorite (insert)
+                await handleSavePin(pin, MY_FAVORITES_BOARD_ID);
+                processAchievement('add_favorite');
+            }
+        } catch (error) {
+            console.error('切換最愛狀態失敗:', error);
+            alert('操作失敗，請稍後再試。');
+        }
+    }, [user, handleSavePin, processAchievement]);
+
+    const handleRenameBoard = useCallback(async (boardId: string, newName: string) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('boards')
+                .update({ name: newName })
+                .eq('id', boardId)
+                .eq('user_id', user.id);
+            if (error) throw error;
+        } catch (error) {
+            console.error('重新命名圖版失敗:', error);
+            alert('重新命名失敗。');
+        }
+    }, [user]);
+
+    const handleClearFavoritePins = useCallback(async () => {
+        if (!user) return;
+        try {
+            const { error } = await supabase
+                .from('board_pins')
+                .delete()
+                .eq('board_id', MY_FAVORITES_BOARD_ID)
+                .eq('user_id', user.id);
+            if (error) throw error;
+        } catch (error) {
+             console.error('清除最愛失敗:', error);
+             alert('清除失敗。');
+        }
+    }, [user]);
+    
+    const contextValue = {
+        creations, setCreations,
+        pins, setPins, // Kept for offline/legacy
+        boards, setBoards, // Kept for offline/legacy
+        ...userProfileData,
+        ...navigationData,
+        ...notificationHandlers,
+        ...iapHandlers,
+        isPremiumUser,
+        shareImage,
+        downloadImage,
+        handleComplete,
+        handleEditorFontChange,
+        handleEditFromViewer,
+        accessibilitySettings,
+        setAccessibilitySettings,
+        pinToSave,
+        openSaveModal: (pin: Pin) => setPinToSave(pin),
+        closeSaveModal: () => setPinToSave(null),
+        handleCreateBoard,
+        handleSavePin,
+        handleDeletePin,
+        handleRemovePinFromBoard,
+        handleToggleFavorite,
+        handleRenameBoard,
+        handleClearFavoritePins,
+    };
+
+    const renderMainContent = () => {
+        switch (activeTab) {
+            case 'home': return React.createElement(HomeScreen, { key: 'home' });
+            case 'search': return React.createElement(SearchScreen, { key: 'search' });
+            case 'profile': return React.createElement(ProfileScreen, { key: 'profile' });
+            default: return React.createElement(HomeScreen, { key: 'default-home' });
+        }
+    };
+    
+    if (view === 'welcome') {
+        return React.createElement(WelcomeScreen, { onStart: handleStartApp });
+    }
+
+    return (
+        React.createElement(AppProvider, { value: contextValue },
+            React.createElement('div', { className: 'app-container' },
+                view === 'main' && renderMainContent(),
+                view === 'board' && React.createElement(BoardScreen, null),
+                view === 'settings' && React.createElement(SettingsScreen, { onBack: () => navigationData.handleTabSelect('profile') }),
+                view === 'honor-wall' && React.createElement(HonorWallScreen, { onBack: () => navigationData.handleTabSelect('profile') }),
+                isEditorOpen && selectedImageInfo && React.createElement(EditorScreen, {
+                    imageInfo: selectedImageInfo,
+                    onClose: navigationData.handleBackToMain,
+                    onComplete: handleComplete,
+                    onFontChange: handleEditorFontChange,
+                }),
+                !isEditorOpen && React.createElement(BottomNavBar, null),
+                showSuccessModal && finalImage && React.createElement(SuccessModal, {
+                    onShare: () => shareImage(finalImage),
+                    onHome: navigationData.handleGoHomeFromModal,
+                    onDownload: () => downloadImage(finalImage)
+                }),
+                showCreationViewer && React.createElement(CreationViewer, {
+                    onClose: () => navigationData.setShowCreationViewer(false),
+                    onDelete: handleDeletePin
+                }),
+                newlyUnlocked.length > 0 && React.createElement(AchievementModal, {
+                    unlockedItems: newlyUnlocked,
+                    userProfile: userProfile,
+                    onClose: () => setNewlyUnlocked(prev => prev.slice(1)),
+                    onShare: shareImage
+                }),
+                pinToSave && React.createElement(SaveToBoardModal, null)
+            )
+        )
+    );
+};
+
+const App = () => {
+    return (
+        React.createElement(AuthProvider, null,
+            React.createElement(AppContent, null)
+        )
+    );
+};
+
+// FIX: Add default export to make the App component available for import in other files.
+export default App;

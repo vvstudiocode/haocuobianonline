@@ -1,0 +1,14 @@
+{
+  "appId": "com.haocuobian.app",
+  "appName": "好厝邊",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "deploymentTarget": "13.0"
+  },
+  "android": {
+    "minSdkVersion": 23
+  }
+}
