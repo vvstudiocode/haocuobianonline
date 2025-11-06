@@ -689,6 +689,45 @@ const AppContent = () => {
 };
 
 const App = () => {
+    // --- Deep Link Handler for Auth Callback ---
+    // FIX: Replaced the previous `window.location.hash` assignment with a more robust
+    // method that directly calls `supabase.auth.setSession`. This avoids race conditions
+    // where the Supabase client might not have initialized its hash change listener
+    // in time, which was the likely cause of the persistent white screen issue.
+    React.useEffect(() => {
+        // This effect runs only on native platforms to handle OAuth redirects.
+        if (Capacitor.isNativePlatform()) {
+            const listenerPromise = CapacitorApp.addListener('appUrlOpen', (data) => {
+                const url = new URL(data.url);
+                const hash = url.hash.substring(1); // Remove the leading '#'
+                if (hash) {
+                    const params = new URLSearchParams(hash);
+                    const accessToken = params.get('access_token');
+                    const refreshToken = params.get('refresh_token');
+
+                    if (accessToken && refreshToken) {
+                        // Directly set the session in the Supabase client.
+                        // This will trigger the onAuthStateChange listener in AuthContext
+                        // and complete the login process reliably.
+                        supabase.auth.setSession({
+                            access_token: accessToken,
+                            refresh_token: refreshToken,
+                        });
+                    } else {
+                        // Fallback for other types of deep links or if tokens are missing.
+                        console.warn('Deep link opened but no auth tokens found in hash.', data.url);
+                    }
+                }
+            });
+
+            // Clean up the listener when the component unmounts.
+            return () => {
+                listenerPromise.then(listener => listener.remove());
+            };
+        }
+        return () => {}; // Return an empty cleanup function for non-native platforms.
+    }, []);
+
     return (
         React.createElement(AuthProvider, null,
             React.createElement(AppContent, null)

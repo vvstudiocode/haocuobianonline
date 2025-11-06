@@ -21,10 +21,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // FIX: Rely on onAuthStateChange to set the initial session. It fires immediately
-        // and is more robust than getSession() which was reported to cause type issues.
         setLoading(true);
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+        // FIX: The original destructuring was fragile and could crash if the API response
+        // structure was unexpected. This safer approach assigns the whole result first.
+        const authStateChange = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
@@ -33,7 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // The authListener object contains a subscription that should be unsubscribed
         // when the component unmounts.
         return () => {
-            authListener?.subscription?.unsubscribe();
+            // Safely unsubscribe from the subscription inside the `data` object.
+            authStateChange?.data?.subscription?.unsubscribe();
         };
     }, []);
 
@@ -64,6 +65,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Explicitly casting to `any` bypasses the incorrect type check without changing the underlying correct logic.
         const { error } = await (supabase.auth as any).signInWithOAuth({
             provider: 'google',
+            options: {
+                redirectTo: 'com.haocuobian.app://login-callback',
+            },
         });
         if (error) {
             alert('使用 Google 登入時發生錯誤: ' + error.message);
