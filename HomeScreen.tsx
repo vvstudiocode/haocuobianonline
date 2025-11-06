@@ -3,16 +3,25 @@ import { useAppContext } from './contexts/AppContext.tsx';
 import { Pin } from './types.ts';
 import { supabase } from './src/supabaseClient.ts';
 
-const { useRef, useEffect, useState, useCallback } = React;
+// FIX: Removed useState from destructuring to use React.useState directly, avoiding potential type resolution issues.
+const { useRef, useEffect, useCallback } = React;
 
 // A placeholder component for when the image is not yet visible.
 const ImagePlaceholder = () => React.createElement('div', { className: 'image-placeholder' });
 
+// FIX: Defined a props interface for type safety and to resolve error with React.memo.
+interface PinItemProps {
+    pin: Pin;
+    onClick: () => void;
+    openCreatorProfile: (creatorId: string) => void;
+}
+
 // A self-contained, lazy-loading Pin item for the masonry grid.
-const PinItem = React.memo(({ pin, onClick, openCreatorProfile }: { pin: Pin, onClick: () => void, openCreatorProfile: (creatorId: string) => void }) => {
+const PinItem = React.memo(({ pin, onClick, openCreatorProfile }: PinItemProps) => {
     const itemRef = useRef<HTMLDivElement>(null);
-    const [isAssetVisible, setIsAssetVisible] = useState(false);
-    const [hasError, setHasError] = useState(false);
+    // FIX: Used React.useState directly.
+    const [isAssetVisible, setIsAssetVisible] = React.useState(false);
+    const [hasError, setHasError] = React.useState(false);
 
     useEffect(() => {
         const observer = new IntersectionObserver(
@@ -67,10 +76,13 @@ const PinItem = React.memo(({ pin, onClick, openCreatorProfile }: { pin: Pin, on
 
 const HomeScreen = () => {
     const { openViewer, openCreatorProfile } = useAppContext();
-    const [publicCreations, setPublicCreations] = useState<Pin[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [sortBy, setSortBy] = useState<'latest' | 'popular'>('latest');
+    // FIX: Changed to React.useState with type argument to resolve "Untyped function calls" error.
+    const [publicCreations, setPublicCreations] = React.useState<Pin[]>([]);
+    const [loading, setLoading] = React.useState(true);
+    // FIX: Changed to React.useState with type argument to resolve "Untyped function calls" error.
+    const [error, setError] = React.useState<string | null>(null);
+    // FIX: Changed to React.useState with type argument to resolve "Untyped function calls" error.
+    const [sortBy, setSortBy] = React.useState<'latest' | 'popular'>('latest');
     
     const fetchPublicCreations = useCallback(async () => {
         setLoading(true);
@@ -125,6 +137,35 @@ const HomeScreen = () => {
     useEffect(() => {
         fetchPublicCreations();
     }, [fetchPublicCreations]);
+
+    // --- NEW: Real-time like count updates ---
+    useEffect(() => {
+        const channel = supabase
+            .channel('public_creations_feed')
+            .on(
+                'postgres_changes',
+                { event: 'UPDATE', schema: 'public', table: 'creations' },
+                (payload) => {
+                    console.log('Real-time change received!', payload);
+                    const updatedCreation = payload.new as any;
+                    
+                    // Update the like count of the specific pin in our local state
+                    setPublicCreations(currentCreations =>
+                        currentCreations.map(pin =>
+                            pin.pinId === updatedCreation.id.toString()
+                                ? { ...pin, likeCount: updatedCreation.like_count }
+                                : pin
+                        )
+                    );
+                }
+            )
+            .subscribe();
+
+        // Cleanup function to remove the channel subscription when the component unmounts
+        return () => {
+            supabase.removeChannel(channel);
+        };
+    }, []); // Run this effect only once on component mount
 
     const renderGridContent = () => {
         if (loading) {
