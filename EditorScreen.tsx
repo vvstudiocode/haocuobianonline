@@ -840,27 +840,31 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
         )
     );
     
-    const renderFinalizeModal = () => (
-        React.createElement('div', { className: 'modal-overlay', onClick: () => setShowFinalizeModal(false) },
+    const renderFinalizeModal = () => {
+        // FIX: Extracted props for input and textarea to separate variables to resolve TypeScript error.
+        const titleInputProps = {
+            type: 'text',
+            placeholder: '作品標題 (選填)',
+            className: 'finalize-input',
+            value: creationTitle,
+            onChange: (e: React.ChangeEvent<HTMLInputElement>) => setCreationTitle(e.target.value),
+            maxLength: 50
+        };
+        const descTextareaProps = {
+            placeholder: '作品說明 (選填)',
+            className: 'finalize-input',
+            rows: 3,
+            value: creationDesc,
+            onChange: (e: React.ChangeEvent<HTMLTextAreaElement>) => setCreationDesc(e.target.value),
+            maxLength: 300
+        };
+
+        return React.createElement('div', { className: 'modal-overlay', onClick: () => setShowFinalizeModal(false) },
             React.createElement('div', { className: 'modal-content', onClick: (e: React.MouseEvent) => e.stopPropagation() },
                 React.createElement('h2', { className: 'modal-title' }, '儲存作品'),
                 React.createElement('div', { className: 'finalize-form' },
-                    React.createElement('input', {
-                        type: 'text',
-                        placeholder: '作品標題 (選填)',
-                        className: 'finalize-input',
-                        value: creationTitle,
-                        onChange: (e) => setCreationTitle(e.target.value),
-                        maxLength: 50
-                    }),
-                    React.createElement('textarea', {
-                        placeholder: '作品說明 (選填)',
-                        className: 'finalize-input',
-                        rows: 3,
-                        value: creationDesc,
-                        onChange: (e) => setCreationDesc(e.target.value),
-                        maxLength: 300
-                    }),
+                    React.createElement('input', titleInputProps),
+                    React.createElement('textarea', descTextareaProps),
                     React.createElement('div', { className: 'public-toggle-wrapper', onClick: () => setIsPublic(p => !p), style: { padding: '10px 0'} },
                         React.createElement('label', { className: 'public-toggle-label' }, '公開分享到「首頁動態」'),
                         React.createElement('label', { className: 'toggle-switch' },
@@ -878,8 +882,8 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
                     React.createElement('button', { className: 'modal-btn secondary', onClick: () => setShowFinalizeModal(false) }, '返回編輯')
                 )
             )
-        )
-    );
+        );
+    };
 
 
     const renderDrawingControls = () => (

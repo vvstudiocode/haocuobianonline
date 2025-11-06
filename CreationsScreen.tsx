@@ -8,14 +8,13 @@
  */
 import React from 'react';
 import { useAppContext } from './contexts/AppContext.tsx';
-import RemoveAdsButton from './RemoveAdsButton.tsx';
 import { Filesystem } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 
 const { useState, useEffect, useMemo } = React;
 
 const CreationsScreen = () => {
-    const { pins, openViewer, handleTabSelect, isPremiumUser } = useAppContext();
+    const { pins, openViewer, handleTabSelect } = useAppContext();
     const [imageSources, setImageSources] = useState<(string | null)[]>([]);
 
     const userCreations = useMemo(() => pins.filter(p => p.sourceType === 'USER_CREATION'), [pins]);
@@ -89,10 +88,9 @@ const CreationsScreen = () => {
     };
 
     return (
-        React.createElement('div', { className: `screen creations-screen ${isPremiumUser ? 'premium-user' : ''}` },
-            !isPremiumUser && React.createElement('div', { className: 'ad-placeholder' },
+        React.createElement('div', { className: 'screen creations-screen' },
+            React.createElement('div', { className: 'ad-placeholder' },
                 '',
-                React.createElement(RemoveAdsButton, null)
             ),
             React.createElement('div', { className: 'image-grid-container page-screen' },
                 renderContent()

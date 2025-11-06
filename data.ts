@@ -109,7 +109,6 @@ export const USER_PROFILE_KEY = 'hucuobian_user_profile_v2';
 export const ACHIEVEMENTS_KEY = 'hucuobian_achievements_v2';
 export const NOTIFICATION_SETTINGS_KEY = 'hucuobian_notification_settings_v1';
 export const ACCESSIBILITY_SETTINGS_KEY = 'hucuobian_accessibility_settings_v1';
-export const USER_PREMIUM_STATUS_KEY = 'hucuobian_premium_status_v1';
 export const MY_FAVORITES_BOARD_NAME = '我的最愛';
 
 // --- 【重要更新】 ---

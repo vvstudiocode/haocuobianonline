@@ -9,7 +9,6 @@
  */
 import React from 'react';
 import { useAppContext } from './contexts/AppContext.tsx';
-import RemoveAdsButton from './RemoveAdsButton.tsx';
 // FIX: Import Pin type and MY_FAVORITES_BOARD_ID for new data structure.
 import { Pin } from './types.ts';
 import { MY_FAVORITES_BOARD_ID } from './data.ts';
@@ -18,7 +17,7 @@ const { useMemo } = React;
 
 const FavoritesScreen = () => {
     // FIX: Destructure boards, pins, and handleToggleFavorite instead of deprecated favorites/setFavorites.
-    const { boards, pins, handleToggleFavorite, openViewer, handleTabSelect, isPremiumUser } = useAppContext();
+    const { boards, pins, handleToggleFavorite, openViewer, handleTabSelect } = useAppContext();
 
     // FIX: Derive favorite pins from the dedicated "My Favorites" board.
     const favoritePins = useMemo<Pin[]>(() => {
@@ -82,10 +81,9 @@ const FavoritesScreen = () => {
     };
 
     return (
-        React.createElement('div', { className: `screen favorites-screen ${isPremiumUser ? 'premium-user' : ''}` },
-            !isPremiumUser && React.createElement('div', { className: 'ad-placeholder' },
+        React.createElement('div', { className: 'screen favorites-screen' },
+            React.createElement('div', { className: 'ad-placeholder' },
                 '',
-                React.createElement(RemoveAdsButton, null)
             ),
             React.createElement('div', { className: 'image-grid-container page-screen' },
                 renderContent()

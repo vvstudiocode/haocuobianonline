@@ -18,8 +18,14 @@ const SaveToBoardModal = () => {
 
     const handleCreateAndSave = async () => {
         if (newBoardName.trim()) {
-            const newBoardId = await handleCreateBoard(newBoardName.trim());
-            handleSavePin(pinToSave, newBoardId);
+            // FIX: Wrap board creation in a try-catch to handle potential errors.
+            try {
+                const newBoardId = await handleCreateBoard(newBoardName.trim());
+                handleSavePin(pinToSave, newBoardId);
+            } catch (error) {
+                // The error is already alerted to the user within handleCreateBoard.
+                console.error("Failed to create board:", error);
+            }
         }
     };
 

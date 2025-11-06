@@ -100,11 +100,6 @@ interface AppContextType {
     accessibilitySettings: AccessibilitySettings;
     setAccessibilitySettings: React.Dispatch<React.SetStateAction<AccessibilitySettings>>;
     
-    // In-App Purchases
-    isPremiumUser: boolean;
-    purchasePremium: () => Promise<void>;
-    restorePurchases: () => Promise<void>;
-
     // Pin & Board Management
     pinToSave: Pin | null;
     openSaveModal: (pin: Pin) => void;

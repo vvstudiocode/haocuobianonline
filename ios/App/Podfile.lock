@@ -10,12 +10,6 @@ PODS:
     - Capacitor
   - CapacitorShare (6.0.3):
     - Capacitor
-  - PurchasesHybridCommon (17.13.0):
-    - RevenueCat (= 5.46.0)
-  - RevenueCat (5.46.0)
-  - RevenuecatPurchasesCapacitor (11.2.10):
-    - Capacitor
-    - PurchasesHybridCommon (= 17.13.0)
 
 DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
@@ -24,12 +18,6 @@ DEPENDENCIES:
   - "CapacitorFilesystem (from `../../node_modules/@capacitor/filesystem`)"
   - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorShare (from `../../node_modules/@capacitor/share`)"
-  - "RevenuecatPurchasesCapacitor (from `../../node_modules/@revenuecat/purchases-capacitor`)"
-
-SPEC REPOS:
-  trunk:
-    - PurchasesHybridCommon
-    - RevenueCat
 
 EXTERNAL SOURCES:
   Capacitor:
@@ -44,8 +32,6 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorShare:
     :path: "../../node_modules/@capacitor/share"
-  RevenuecatPurchasesCapacitor:
-    :path: "../../node_modules/@revenuecat/purchases-capacitor"
 
 SPEC CHECKSUMS:
   Capacitor: 1e0d0e7330dea9f983b50da737d8918abcf273f8
@@ -54,10 +40,7 @@ SPEC CHECKSUMS:
   CapacitorFilesystem: fa3099b3c3aa43a1b51362d0c999301ab1a9a752
   CapacitorLocalNotifications: 99b06c7b2a7e03d43efc6fdb5c4f75ce92880108
   CapacitorShare: 7af6ca761ce62030e8e9fbd2eb82416f5ceced38
-  PurchasesHybridCommon: f408c80577f9d1b7400acf7466846125496877b0
-  RevenueCat: 0423a85e1f2ef06f1002b18cae53fe856f60ea53
-  RevenuecatPurchasesCapacitor: 4baf123df27c556e366f937d8f763d5f09f5698b
 
-PODFILE CHECKSUM: fac830ddd9c052e1ba79e94055c7a2603e3968a6
+PODFILE CHECKSUM: 98fd0315147c1fc7cd46a8e5fb692b0351a1d3f2
 
 COCOAPODS: 1.16.2

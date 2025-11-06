@@ -23,7 +23,6 @@ import { useStorage } from './hooks/useStorage.ts';
 import { useUserProfile } from './hooks/useUserProfile.ts';
 import { useNavigation } from './hooks/useNavigation.ts';
 import { useNotifications } from './hooks/useNotifications.ts';
-import { useInAppPurchases } from './hooks/useInAppPurchases.ts';
 import WelcomeScreen from './WelcomeScreen.tsx';
 import HomeScreen from './HomeScreen.tsx';
 import ProfileScreen from './ProfileScreen.tsx';
@@ -39,7 +38,7 @@ import SaveToBoardModal from './SaveToBoardModal.tsx';
 import BoardScreen from './BoardScreen.tsx';
 import CreatorProfileScreen from './CreatorProfileScreen.tsx';
 // FIX: Import `MY_CREATIONS_KEY` to resolve reference error.
-import { MY_CREATIONS_KEY, MY_FAVORITES_BOARD_ID, MY_FAVORITES_BOARD_NAME, NOTIFICATION_SETTINGS_KEY, ACCESSIBILITY_SETTINGS_KEY, USER_PREMIUM_STATUS_KEY, PINS_KEY, BOARDS_KEY, CATEGORIES, convertCategoriesToPins, MY_CREATIONS_BOARD_ID } from './data.ts';
+import { MY_CREATIONS_KEY, MY_FAVORITES_BOARD_ID, MY_FAVORITES_BOARD_NAME, NOTIFICATION_SETTINGS_KEY, ACCESSIBILITY_SETTINGS_KEY, PINS_KEY, BOARDS_KEY, CATEGORIES, convertCategoriesToPins, MY_CREATIONS_BOARD_ID } from './data.ts';
 import { Capacitor } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { Share } from '@capacitor/share';
@@ -91,13 +90,11 @@ const AppContent = () => {
     const [boards, setBoards] = useStorage<Board[]>(BOARDS_KEY, []);
     const [notificationSettings, setNotificationSettings] = useStorage(NOTIFICATION_SETTINGS_KEY, { enabled: true, time: '06:00' });
     const [accessibilitySettings, setAccessibilitySettings] = useStorage<AccessibilitySettings>(ACCESSIBILITY_SETTINGS_KEY, { fontSize: 'largest', highContrast: false });
-    const [isPremiumUser, setIsPremiumUser] = useStorage<boolean>(USER_PREMIUM_STATUS_KEY, false);
     const [pinToSave, setPinToSave] = useState<Pin | null>(null);
 
     const userProfileData = useUserProfile();
     const navigationData = useNavigation();
     const notificationHandlers = useNotifications();
-    const iapHandlers = useInAppPurchases(setIsPremiumUser);
 
     const { view, activeTab, isEditorOpen, finalImage, showSuccessModal, showCreationViewer, selectedImageInfo, setFinalImage, setShowSuccessModal } = navigationData;
     const { userProfile, newlyUnlocked, setNewlyUnlocked, processAchievement } = userProfileData;
@@ -125,8 +122,6 @@ const AppContent = () => {
                 notificationHandlers.reaffirmDailyReminder(notificationSettings);
             }
             
-            // Initialize In-App Purchases
-            iapHandlers.initPurchases();
         };
 
         initializeApp();
@@ -490,27 +485,33 @@ const AppContent = () => {
         navigationData.openEditor(info, -1, 0);
     }, [navigationData]);
 
-    const handleCreateBoard = useCallback(async (boardName: string): Promise<Board | null> => {
-        if (!user) return null;
+    // FIX: Changed handleCreateBoard to return Promise<string> (the board ID) to match context type.
+    const handleCreateBoard = useCallback(async (boardName: string): Promise<string> => {
+        if (!user) {
+            alert('請先登入以建立圖版');
+            throw new Error('User not logged in');
+        }
 
         const { data, error } = await supabase
             .from('boards')
             .insert({ user_id: user.id, name: boardName.trim() })
-            .select()
+            .select('id')
             .single();
 
         if (error) {
             console.error('建立圖版失敗:', error);
             alert('建立圖版失敗。');
-            return null;
+            throw error;
+        }
+
+        if (!data?.id) {
+            const creationError = new Error('Board creation returned no ID.');
+            console.error(creationError);
+            alert('建立圖版失敗。');
+            throw creationError;
         }
         
-        return data ? {
-            boardId: data.id,
-            name: data.name,
-            coverPinUrl: data.cover_pin_url,
-            pinIds: []
-        } : null;
+        return data.id;
     }, [user]);
 
     const handleSavePin = useCallback(async (pin: Pin, boardId: string) => {
@@ -616,8 +617,6 @@ const AppContent = () => {
         ...userProfileData,
         ...navigationData,
         ...notificationHandlers,
-        ...iapHandlers,
-        isPremiumUser,
         shareImage,
         downloadImage,
         handleComplete,

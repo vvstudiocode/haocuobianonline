@@ -29,8 +29,6 @@ const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
       requestPermissions,
       accessibilitySettings,
       setAccessibilitySettings,
-      isPremiumUser,
-      restorePurchases,
     } = useAppContext();
     const [modalContent, setModalContent] = useState(null);
     const [notificationSettings, setNotificationSettings] = useStorage(NOTIFICATION_SETTINGS_KEY, {
@@ -276,14 +274,6 @@ const SettingsScreen = ({ onBack }: SettingsScreenProps) => {
                             React.createElement('span', { className: 'toggle-slider' })
                         )
                     )
-                ),
-                 React.createElement('div', { className: 'settings-section' },
-                    React.createElement('h3', null, '尊榮會員'),
-                    isPremiumUser ? 
-                         React.createElement('p', null, '感謝您的支持！您目前是尊榮會員，已享有 App 無廣告體驗。')
-                       : React.createElement('p', null, '如果您先前已購買，可點此恢復您的尊榮會員資格。'),
-                    
-                    React.createElement('button', { className: 'settings-button', onClick: restorePurchases }, '恢復購買項目')
                 ),
                 React.createElement('div', { className: 'settings-section' },
                     React.createElement('h3', null, '說明'),
