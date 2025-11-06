@@ -105,29 +105,32 @@ const AppContent = () => {
 
     useEffect(() => {
         const initializeApp = async () => {
-            if (Capacitor.isPluginAvailable('LocalNotifications') && Capacitor.isNativePlatform()) {
-                await LocalNotifications.createChannel({
-                    id: 'reminders',
-                    name: '每日提醒',
-                    description: '用於早安問候的每日提醒',
-                    importance: 4,
-                    visibility: 1,
-                    lights: true,
-                    vibration: true,
-                });
+            if (Capacitor.isNativePlatform()) {
+                if (Capacitor.isPluginAvailable('LocalNotifications')) {
+                    await LocalNotifications.createChannel({
+                        id: 'reminders',
+                        name: '每日提醒',
+                        description: '用於早安問候的每日提醒',
+                        importance: 4,
+                        visibility: 1,
+                        lights: true,
+                        vibration: true,
+                    });
+                }
+                
+                notificationHandlers.initNotificationListeners(handleNotificationClick);
+                if (view !== 'welcome') {
+                    notificationHandlers.reaffirmDailyReminder(notificationSettings);
+                }
             }
-            
-            notificationHandlers.initNotificationListeners(handleNotificationClick);
-            if (view !== 'welcome') {
-                notificationHandlers.reaffirmDailyReminder(notificationSettings);
-            }
-            
         };
 
         initializeApp();
 
         return () => {
-            notificationHandlers.removeNotificationListeners();
+            if (Capacitor.isNativePlatform()) {
+                notificationHandlers.removeNotificationListeners();
+            }
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [view]);

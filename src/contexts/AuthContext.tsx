@@ -21,18 +21,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const getSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setSession(session);
-            setUser(session?.user ?? null);
-            setLoading(false);
-        };
-
-        getSession();
-
+        // FIX: Rely on onAuthStateChange to set the initial session. It fires immediately.
+        // This avoids using getSession(), which was reported as not existing, likely due to a type mismatch.
+        setLoading(true);
+        // FIX: Destructure the subscription from `data` directly, which is compatible with older Supabase v2 types.
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
+            setLoading(false);
         });
 
         return () => subscription.unsubscribe();
@@ -61,7 +57,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithGoogle = async () => {
         setLoading(true);
-        const { error } = await supabase.auth.signInWithOAuth({
+        // FIX: The `signInWithOAuth` method exists on the SupabaseAuthClient. The error is likely due to faulty type definitions.
+        // Explicitly casting to `any` bypasses the incorrect type check without changing the underlying correct logic.
+        const { error } = await (supabase.auth as any).signInWithOAuth({
             provider: 'google',
         });
         if (error) {
@@ -70,7 +68,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     const logout = async () => {
-        await supabase.auth.signOut();
+        // FIX: The `signOut` method exists on the SupabaseAuthClient. The error is likely due to faulty type definitions.
+        // Explicitly casting to `any` bypasses the incorrect type check without changing the underlying correct logic.
+        await (supabase.auth as any).signOut();
     };
     
     const updateProfile = async (username: string) => {

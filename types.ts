@@ -3,7 +3,8 @@
  * @description
  * 集中管理整個應用程式共享的 TypeScript 型別定義。
  */
-import { Session, User } from '@supabase/supabase-js';
+// FIX: Use `import type` for Session and User as they are types and this can help with module resolution issues in some environments, resolving the "no exported member" error.
+import type { Session, User } from '@supabase/supabase-js';
 
 export interface ImageInfo {
     src: string;

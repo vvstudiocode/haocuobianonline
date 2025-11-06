@@ -1,11 +1,18 @@
-// FIX: The triple-slash reference to "vite/client" was causing a "Cannot find type definition file" error.
-// This is likely due to a misconfiguration in the TypeScript environment. Removing the reference and casting `import.meta`
-// to `any` resolves the type errors, allowing access to Vite environment variables at runtime.
+// FIX: Manually declare the shape of `import.meta.env` to resolve TypeScript errors.
+// This avoids issues where the Vite client types (`vite/client`) are not automatically recognized by the build environment.
+declare global {
+  interface ImportMeta {
+    readonly env: {
+      readonly VITE_SUPABASE_URL: string;
+      readonly VITE_SUPABASE_ANON_KEY: string;
+    };
+  }
+}
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
-const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error('Supabase URL and Anon Key must be provided in .env file');
