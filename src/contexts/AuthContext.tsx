@@ -21,17 +21,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // FIX: Rely on onAuthStateChange to set the initial session. It fires immediately.
-        // This avoids using getSession(), which was reported as not existing, likely due to a type mismatch.
+        // FIX: Rely on onAuthStateChange to set the initial session. It fires immediately
+        // and is more robust than getSession() which was reported to cause type issues.
         setLoading(true);
-        // FIX: Destructure the subscription from `data` directly, which is compatible with older Supabase v2 types.
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
             setUser(session?.user ?? null);
             setLoading(false);
         });
 
-        return () => subscription.unsubscribe();
+        // The authListener object contains a subscription that should be unsubscribed
+        // when the component unmounts.
+        return () => {
+            authListener?.subscription?.unsubscribe();
+        };
     }, []);
 
     useEffect(() => {

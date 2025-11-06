@@ -3,8 +3,7 @@
   "appName": "好厝邊",
   "webDir": "dist",
   "server": {
-    "url": "http://10.0.2.2:3000",
-    "cleartext": true
+    "androidScheme": "https"
   },
   "ios": {
     "deploymentTarget": "13.0"

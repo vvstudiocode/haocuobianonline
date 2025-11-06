@@ -1,11 +1,10 @@
 // FIX: Manually declare the shape of `import.meta.env` to resolve TypeScript errors.
-// This avoids issues where the Vite client types (`vite/client`) are not automatically recognized by the build environment.
+// By augmenting `ImportMetaEnv`, we add our specific environment variables to Vite's
+// existing type definitions, which resolves the type conflict.
 declare global {
-  interface ImportMeta {
-    readonly env: {
-      readonly VITE_SUPABASE_URL: string;
-      readonly VITE_SUPABASE_ANON_KEY: string;
-    };
+  interface ImportMetaEnv {
+    readonly VITE_SUPABASE_URL: string;
+    readonly VITE_SUPABASE_ANON_KEY: string;
   }
 }
 
