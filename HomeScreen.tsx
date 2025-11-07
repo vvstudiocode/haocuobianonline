@@ -63,8 +63,8 @@ const PinItem = React.memo(({ pin, onClick, openCreatorProfile }: PinItemProps) 
                 onError: handleImageError
             })
         : React.createElement(ImagePlaceholder, null),
-        React.createElement('div', { className: 'pin-info' },
-            React.createElement('div', { className: 'pin-title' }, pin.title),
+        React.createElement('div', { className: 'pin-details' },
+            pin.title && React.createElement('div', { className: 'pin-title' }, pin.title),
             React.createElement('div', { className: 'pin-meta' },
                 React.createElement('button', { className: 'pin-creator-btn', onClick: handleCreatorClick }, `由 ${pin.creatorUsername}`),
                 React.createElement('span', { className: 'pin-likes' }, `❤️ ${pin.likeCount ?? 0}`)

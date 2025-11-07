@@ -1,4 +1,3 @@
-
 /**
  * @file App.tsx
  * @description
@@ -105,6 +104,7 @@ const AppContent = () => {
     const [accessibilitySettings, setAccessibilitySettings] = useStorage<AccessibilitySettings>(ACCESSIBILITY_SETTINGS_KEY, { fontSize: 'largest', highContrast: false });
     const [pinToSave, setPinToSave] = useState<Pin | null>(null);
     const [isSaving, setIsSaving] = useState(false);
+    const [isTogglingFavorite, setIsTogglingFavorite] = useState<string | null>(null);
 
     const userProfileData = useUserProfile();
     const navigationData = useNavigation();
@@ -152,6 +152,33 @@ const AppContent = () => {
     useEffect(() => {
         console.log('App.tsx - showCreationViewer state changed:', showCreationViewer);
     }, [showCreationViewer]);
+
+    // --- Fetch user boards on login ---
+    useEffect(() => {
+        if (user) {
+            const fetchUserBoards = async () => {
+                const { data, error } = await supabase
+                    .from('boards')
+                    .select('id, name, cover_pin_url, board_pins(creation_id)')
+                    .eq('user_id', user.id);
+                
+                if (error) {
+                    console.error('Error fetching user boards:', error);
+                } else {
+                    const mappedBoards: Board[] = data.map((b: any) => ({
+                        boardId: b.id,
+                        name: b.name,
+                        coverPinUrl: b.cover_pin_url,
+                        pinIds: b.board_pins.map((p: any) => p.creation_id),
+                    }));
+                    setBoards(mappedBoards);
+                }
+            };
+            fetchUserBoards();
+        } else {
+            setBoards([]); // Clear boards on logout
+        }
+    }, [user, setBoards]);
 
     // --- Accessibility Settings Applier ---
     useEffect(() => {
@@ -528,8 +555,24 @@ const AppContent = () => {
             throw creationError;
         }
         
+        // After creating, refetch all boards to update the context
+        const { data: allBoardsData, error: fetchError } = await supabase
+            .from('boards')
+            .select('id, name, cover_pin_url, board_pins(creation_id)')
+            .eq('user_id', user.id);
+            
+        if (!fetchError && allBoardsData) {
+            const mappedBoards: Board[] = allBoardsData.map((b: any) => ({
+                boardId: b.id,
+                name: b.name,
+                coverPinUrl: b.cover_pin_url,
+                pinIds: b.board_pins.map((p: any) => p.creation_id),
+            }));
+            setBoards(mappedBoards);
+        }
+        
         return data.id;
-    }, [user]);
+    }, [user, setBoards]);
 
     const handleSavePin = useCallback(async (pin: Pin, boardId: string) => {
         if (!user) return;
@@ -542,7 +585,20 @@ const AppContent = () => {
             });
             if (insertError) throw insertError;
 
-            // 2. Check if the board has a cover and update if it doesn't
+            // 2. Update local state
+            setBoards(prevBoards => {
+                return prevBoards.map(board => {
+                    if (board.boardId === boardId && !board.pinIds.includes(pin.pinId)) {
+                        const newPinIds = [...board.pinIds, pin.pinId];
+                        // Update cover if it's empty
+                        const newCoverUrl = board.coverPinUrl || pin.imageUrl;
+                        return { ...board, pinIds: newPinIds, coverPinUrl: newCoverUrl };
+                    }
+                    return board;
+                });
+            });
+
+            // 3. Check if the board has a cover and update in DB if it doesn't
             const { data: boardData } = await supabase
                 .from('boards')
                 .select('cover_pin_url')
@@ -564,10 +620,13 @@ const AppContent = () => {
             console.error('儲存 Pin 失敗:', error);
             alert(`儲存失敗: ${getErrorMessage(error)}`);
         }
-    }, [user]);
+    }, [user, setBoards]);
 
     const handleToggleFavorite = useCallback(async (pin: Pin) => {
-        if (!user) return;
+        if (!user || isTogglingFavorite) return;
+        
+        setIsTogglingFavorite(pin.pinId);
+        
         try {
             // Check if it's already a favorite
             const { data, error: checkError } = await supabase
@@ -586,15 +645,26 @@ const AppContent = () => {
                     .delete()
                     .eq('id', data.id);
                 if (deleteError) throw deleteError;
+
+                // Manually update context state
+                setBoards(prev => prev.map(b => {
+                    if (b.boardId === MY_FAVORITES_BOARD_ID) {
+                        return { ...b, pinIds: b.pinIds.filter(id => id !== pin.pinId) };
+                    }
+                    return b;
+                }));
+
             } else { // It doesn't exist, so favorite (insert)
-                await handleSavePin(pin, MY_FAVORITES_BOARD_ID);
+                await handleSavePin(pin, MY_FAVORITES_BOARD_ID); // This already updates context
                 processAchievement('add_favorite');
             }
         } catch (error: any) {
             console.error('切換最愛狀態失敗:', error);
             alert(`操作失敗: ${getErrorMessage(error)}`);
+        } finally {
+            setIsTogglingFavorite(null);
         }
-    }, [user, handleSavePin, processAchievement]);
+    }, [user, handleSavePin, processAchievement, setBoards, isTogglingFavorite]);
 
     const handleRenameBoard = useCallback(async (boardId: string, newName: string) => {
         if (!user) return;
@@ -625,6 +695,21 @@ const AppContent = () => {
              alert(`清除失敗: ${getErrorMessage(error)}`);
         }
     }, [user]);
+
+    const handleDeleteBoard = useCallback(async (boardId: string) => {
+        if (!user) return;
+        try {
+            const { error } = await supabase.from('boards').delete().eq('id', boardId).eq('user_id', user.id);
+            if (error) throw error;
+
+            setBoards(prev => prev.filter(b => b.boardId !== boardId));
+            alert('圖版已刪除。');
+            navigationData.handleTabSelect('profile');
+        } catch (error: any) {
+            console.error('刪除圖版失敗:', error);
+            alert(`刪除失敗: ${getErrorMessage(error)}`);
+        }
+    }, [user, setBoards, navigationData]);
     
     const contextValue = {
         creations, setCreations,
@@ -641,13 +726,18 @@ const AppContent = () => {
         accessibilitySettings,
         setAccessibilitySettings,
         pinToSave,
-        openSaveModal: (pin: Pin) => setPinToSave(pin),
+        openSaveModal: (pin: Pin) => {
+            navigationData.setShowCreationViewer(false);
+            setPinToSave(pin);
+        },
         closeSaveModal: () => setPinToSave(null),
         handleCreateBoard,
         handleSavePin,
         handleDeletePin,
+        handleDeleteBoard,
         handleRemovePinFromBoard,
         handleToggleFavorite,
+        isTogglingFavorite,
         handleRenameBoard,
         handleClearFavoritePins,
     };

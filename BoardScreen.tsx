@@ -75,7 +75,7 @@ const PinItem = ({ pin, onClick, showFavoriteButton, onToggleFavorite }: {
 
 
 const BoardScreen = () => {
-    const { activeBoardId, handleTabSelect, openViewer, handleRenameBoard, handleToggleFavorite } = useAppContext();
+    const { activeBoardId, handleTabSelect, openViewer, handleRenameBoard, handleDeleteBoard, handleToggleFavorite } = useAppContext();
     const { user } = useAuth();
 
     const [board, setBoard] = useState<Board | null>(null);
@@ -158,13 +158,21 @@ const BoardScreen = () => {
 
     const isFavoritesBoard = activeBoardId === MY_FAVORITES_BOARD_ID;
     const isMyCreationsBoard = activeBoardId === MY_CREATIONS_BOARD_ID;
+    const isDefaultBoard = isFavoritesBoard || isMyCreationsBoard;
     
     const handleRename = async () => {
-        if (!board || isFavoritesBoard || isMyCreationsBoard) return;
+        if (!board || isDefaultBoard) return;
         const newName = window.prompt('請輸入新的圖版名稱：', board.name);
         if (newName && newName.trim() && newName.trim() !== board.name) {
             await handleRenameBoard(board.boardId, newName.trim());
             setBoard(prev => prev ? { ...prev, name: newName.trim() } : null);
+        }
+    };
+
+    const confirmDelete = () => {
+        if (!board || isDefaultBoard) return;
+        if (window.confirm(`確定要永久刪除「${board.name}」圖版嗎？圖版中的 Pin 不會被刪除。`)) {
+            handleDeleteBoard(board.boardId);
         }
     };
 
@@ -200,13 +208,22 @@ const BoardScreen = () => {
             React.createElement('div', { className: 'header board-header' },
                 React.createElement('button', { className: 'header-btn back-btn', onClick: () => handleTabSelect('profile') }, '< 返回'),
                 React.createElement('h2', { className: 'page-title' }, board?.name || '圖版'),
-                React.createElement('button', { 
-                    className: 'header-btn edit-btn', 
-                    onClick: handleRename, 
-                    'aria-label': '重新命名圖版', 
-                    title: '重新命名圖版', 
-                    disabled: isLoading || !board || isFavoritesBoard || isMyCreationsBoard
-                }, '✏️')
+                React.createElement('div', { className: 'board-header-actions' },
+                    React.createElement('button', { 
+                        className: 'header-btn edit-btn', 
+                        onClick: handleRename, 
+                        'aria-label': '重新命名圖版', 
+                        title: '重新命名圖版', 
+                        disabled: isLoading || !board || isDefaultBoard
+                    }, '編輯'),
+                    React.createElement('button', { 
+                        className: 'header-btn delete-btn', 
+                        onClick: confirmDelete, 
+                        'aria-label': '刪除圖版', 
+                        title: '刪除圖版', 
+                        disabled: isLoading || !board || isDefaultBoard
+                    }, '🗑️')
+                )
             ),
             React.createElement('div', { className: 'image-grid-container' },
                 renderGridContent()

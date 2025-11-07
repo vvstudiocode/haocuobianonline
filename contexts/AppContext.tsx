@@ -94,7 +94,8 @@ interface AppContextType {
     ) => void;
     handleEditorFontChange: (fontFamily: string) => void;
     handleEditFromViewer: (pin: Pin) => void;
-    handleToggleFavorite: (pin: Pin) => void;
+    handleToggleFavorite: (pin: Pin) => Promise<void>;
+    isTogglingFavorite: string | null;
 
     // Accessibility
     accessibilitySettings: AccessibilitySettings;
@@ -107,6 +108,7 @@ interface AppContextType {
     handleCreateBoard: (boardName: string) => Promise<string>;
     handleSavePin: (pin: Pin, boardId: string) => void;
     handleDeletePin: (pinId: string) => void;
+    handleDeleteBoard: (boardId: string) => Promise<void>;
     handleRemovePinFromBoard: (pinId: string, boardId: string) => void;
     handleRenameBoard: (boardId: string, newName: string) => void;
     handleClearFavoritePins: () => void;

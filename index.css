@@ -163,15 +163,32 @@ button:focus {
 .header.board-header .page-title {
     text-align: center;
     font-size: 1.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .header.board-header .header-btn {
     min-width: auto;
 }
-.header.board-header .edit-btn {
-    font-size: 1.25rem;
+.board-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.header.board-header .edit-btn,
+.header.board-header .delete-btn {
+    font-size: 1rem;
     padding: 5px;
     color: var(--text-color);
 }
+.header.board-header .delete-btn {
+    font-size: 1.25rem;
+}
+.header.board-header .delete-btn:disabled {
+    color: #ccc;
+    background: none;
+}
+
 
 /* --- Ad Placeholder --- */
 .ad-placeholder {
@@ -284,16 +301,18 @@ button:focus {
     break-inside: avoid;
     display: inline-block;
     width: 100%;
-    position: relative;
     cursor: pointer;
-    overflow: hidden; /* Ensure info overlay corners are rounded */
+    overflow: hidden;
     border-radius: 12px;
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
 }
 .pin-item img {
     width: 100%;
     height: auto;
     display: block;
-    border-radius: 12px;
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
 }
 
 .empty-grid-message { grid-column: 1 / -1; text-align: center; padding: 40px 20px; color: #888; display: flex; flex-direction: column; align-items: center; gap: 20px; }
@@ -307,21 +326,9 @@ button:focus {
     border-radius: 12px;
 }
 
-/* --- Pin Info Overlay on Hover (HomeScreen) --- */
-.pin-info {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    padding: 12px 10px;
-    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
-    color: white;
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-    pointer-events: none; /* Allow clicks to pass through to the item */
-}
-.pin-item:hover .pin-info {
-    opacity: 1;
+/* --- Pin Details below image (HomeScreen) --- */
+.pin-details {
+    padding: 8px 10px;
 }
 .pin-title {
     font-weight: bold;
@@ -330,6 +337,7 @@ button:focus {
     overflow: hidden;
     text-overflow: ellipsis;
     margin-bottom: 4px;
+    color: var(--text-color);
 }
 .pin-meta {
     display: flex;
@@ -337,8 +345,20 @@ button:focus {
     align-items: center;
     font-size: 0.75rem;
 }
+.pin-meta .pin-creator-btn {
+    color: #666;
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: inherit;
+    pointer-events: all;
+}
+.pin-meta .pin-creator-btn:hover {
+    text-decoration: underline;
+}
 .pin-likes {
     font-weight: 500;
+    color: #666;
 }
 
 
@@ -1048,6 +1068,11 @@ input:disabled + .toggle-slider { background-color: #e0e0e0; cursor: not-allowed
 }
 .viewer-favorite-btn.favorited:hover svg {
     fill: #c62828;
+}
+.viewer-favorite-btn:disabled {
+    opacity: 0.5;
+    transform: none;
+    cursor: wait;
 }
 @keyframes slideInFromRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @keyframes slideInFromLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }

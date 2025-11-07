@@ -32,6 +32,7 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         viewerSource,
         handleRemovePinFromBoard,
         handleToggleFavorite,
+        isTogglingFavorite,
         handleTabSelect,
         openCreatorProfile,
         openSaveModal,
@@ -49,7 +50,7 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
     const [isLikeLoading, setIsLikeLoading] = useState(true);
 
     const isFavorited = useMemo(() => {
-        if (!currentPin) return false;
+        if (!currentPin || !boards) return false;
         const favoritesBoard = boards.find(b => b.boardId === MY_FAVORITES_BOARD_ID);
         return !!favoritesBoard && favoritesBoard.pinIds.includes(currentPin.pinId);
     }, [boards, currentPin]);
@@ -209,16 +210,6 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         }
     };
 
-    const handleRemoveFromBoard = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (currentPin && viewerSource?.type === 'board') {
-            const boardName = boards.find(b => b.boardId === viewerSource.id)?.name || '此';
-            if (window.confirm(`確定要從「${boardName}」圖版中移除這張 Pin 嗎？`)) {
-                handleRemovePinFromBoard(currentPin.pinId, viewerSource.id);
-            }
-        }
-    };
-
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'ArrowLeft') goToPrevious();
@@ -259,9 +250,6 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
     const saveIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
         React.createElement('path', { d: "M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z" })
     );
-    const removeFromBoardIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
-        React.createElement('path', { d: "M19 13H5v-2h14v2z" })
-    );
     const heartIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24" }, 
         React.createElement('path', { d: "M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" })
     );
@@ -287,7 +275,6 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
 
     const canEdit = viewerSource?.type === 'board' || currentPin?.sourceType === 'USER_CREATION' || currentPin?.sourceType === 'STATIC_IMAGE';
     const canDelete = currentPin?.creatorId !== 'official' && currentPin?.creatorId === user?.id;
-    const canRemoveFromBoard = viewerSource?.type === 'board';
     const canSave = currentPin?.creatorId === 'official' || currentPin?.sourceType === 'USER_CREATION';
 
     // FIX: Extracted props for the favorite button to a variable to bypass TypeScript's excess property checking error.
@@ -295,7 +282,8 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         className: `viewer-favorite-btn ${isFavorited ? 'favorited' : ''}`,
         onClick: (e: React.MouseEvent) => { e.stopPropagation(); currentPin && handleToggleFavorite(currentPin); },
         'aria-label': isFavorited ? '從最愛中移除' : '加入最愛',
-        title: isFavorited ? '從最愛中移除' : '加入最愛'
+        title: isFavorited ? '從最愛中移除' : '加入最愛',
+        disabled: isTogglingFavorite === currentPin?.pinId,
     };
 
     return React.createElement('div', { className: 'modal-overlay viewer-overlay', onClick: handleClose },
@@ -304,7 +292,6 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
                 canSave && React.createElement('button', { onClick: handleSave, 'aria-label': 'Save to board', title: '儲存到圖版' }, saveIcon),
                 React.createElement('button', { onClick: handleDownload, 'aria-label': 'Download', title: '下載', disabled: !currentPin }, downloadIcon),
                 React.createElement('button', { onClick: handleShare, 'aria-label': 'Share', title: '分享', disabled: !currentPin }, shareIcon),
-                canRemoveFromBoard && React.createElement('button', { className: 'remove-from-board', onClick: handleRemoveFromBoard, 'aria-label': 'Remove from Board', title: '從圖版移除' }, removeFromBoardIcon),
                 canDelete && React.createElement('button', { onClick: handleDelete, 'aria-label': 'Delete', title: '刪除' }, trashIcon),
             ),
             React.createElement('div', { className: 'viewer-actions' },
