@@ -871,6 +871,7 @@ const EditorScreen = ({ imageInfo, onClose, onComplete, onFontChange }: EditorSc
                             React.createElement('input', {
                                 type: 'checkbox',
                                 checked: isPublic,
+                                onChange: () => setIsPublic(p => !p), // FIX: Added onChange handler here.
                             }),
                             React.createElement('span', { className: 'toggle-slider' })
                         )
