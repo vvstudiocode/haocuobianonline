@@ -351,7 +351,7 @@ const AppContent = () => {
             // 2. Upload image to Supabase Storage
             const fileName = `${user.id}/${Date.now()}.jpeg`;
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('creations-images')
+                .from('CREATION-IMAGES')
                 .upload(fileName, blob, {
                     cacheControl: '3600',
                     upsert: false,
@@ -364,7 +364,7 @@ const AppContent = () => {
 
             // 3. Get public URL
             const { data: urlData } = supabase.storage
-                .from('creations-images')
+                .from('CREATION-IMAGES')
                 .getPublicUrl(uploadData.path);
             
             const imageUrl = urlData.publicUrl;
@@ -373,7 +373,6 @@ const AppContent = () => {
             const { data: creationData, error: insertError } = await supabase
                 .from('creations')
                 .insert({
-                    user_id: user.id,
                     title: title.trim() || '我的創作',
                     description: description.trim() || null,
                     image_url: imageUrl,
@@ -392,7 +391,6 @@ const AppContent = () => {
                 await supabase.from('board_pins').insert({
                     board_id: MY_CREATIONS_BOARD_ID,
                     creation_id: creationData.id,
-                    user_id: user.id,
                 });
             }
 
@@ -435,9 +433,9 @@ const AppContent = () => {
             
             // 2. Delete the image from Storage
             const imageUrl = creation.image_url;
-            const path = new URL(imageUrl).pathname.split('/creations-images/')[1];
+            const path = new URL(imageUrl).pathname.split('/CREATION-IMAGES/')[1];
             if (path) {
-                const { error: storageError } = await supabase.storage.from('creations-images').remove([path]);
+                const { error: storageError } = await supabase.storage.from('CREATION-IMAGES').remove([path]);
                 if (storageError) console.error('刪除雲端圖片失敗:', storageError.message); // Log but continue
             }
             
@@ -497,7 +495,7 @@ const AppContent = () => {
 
         const { data, error } = await supabase
             .from('boards')
-            .insert({ user_id: user.id, name: boardName.trim() })
+            .insert({ name: boardName.trim() })
             .select('id')
             .single();
 
@@ -525,7 +523,6 @@ const AppContent = () => {
             const { error: insertError } = await supabase.from('board_pins').insert({
                 board_id: boardId,
                 creation_id: pin.pinId,
-                user_id: user.id
             });
             if (insertError) throw insertError;
 

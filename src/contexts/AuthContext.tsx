@@ -1,6 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 import { Session, User, Profile } from '../types';
+import { Capacitor } from '@capacitor/core';
 
 interface AuthContextType {
     session: Session | null;
@@ -61,12 +62,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const signInWithGoogle = async () => {
         setLoading(true);
+        
+        const redirectTo = Capacitor.isNativePlatform()
+            ? 'com.haocuobian.app://login-callback'
+            : window.location.origin;
+
         // FIX: The `signInWithOAuth` method exists on the SupabaseAuthClient. The error is likely due to faulty type definitions.
         // Explicitly casting to `any` bypasses the incorrect type check without changing the underlying correct logic.
         const { error } = await (supabase.auth as any).signInWithOAuth({
             provider: 'google',
             options: {
-                redirectTo: 'com.haocuobian.app://login-callback',
+                redirectTo: redirectTo,
             },
         });
         if (error) {

@@ -83,7 +83,7 @@ const ProfileScreen = () => {
 
         const { data, error } = await supabase
             .from('boards')
-            .insert({ user_id: user.id, name: newBoardName.trim() })
+            .insert({ name: newBoardName.trim() })
             .select()
             .single();
 
