@@ -95,18 +95,17 @@ const BoardScreen = () => {
                     throw new Error('請先登入以查看圖版。');
                 }
                 
-                // Fetch board details and its associated pins (creations) in one go
+                // Fetch board details and its associated pins (creations) through the junction table 'board_pins'
                 const { data, error: queryError } = await supabase
                     .from('boards')
                     .select(`
                         id,
                         name,
-                        creations (
-                            id,
-                            image_url,
-                            title,
-                            user_id,
-                            editor_data
+                        board_pins (
+                            creations (
+                                *,
+                                profiles ( username )
+                            )
                         )
                     `)
                     .eq('id', activeBoardId)
@@ -116,21 +115,28 @@ const BoardScreen = () => {
                 if (queryError) throw queryError;
                 
                 if (data) {
+                    const creationsFromJoin = data.board_pins
+                        .map((bp: any) => bp.creations)
+                        .filter(Boolean); // Filter out any null creations
+
                     const currentBoard: Board = {
                         boardId: data.id,
                         name: data.name,
-                        pinIds: data.creations.map((c: any) => c.id),
+                        pinIds: creationsFromJoin.map((c: any) => c.id),
                     };
                     setBoard(currentBoard);
 
-                    const mappedPins: Pin[] = data.creations.map((c: any) => ({
+                    const mappedPins: Pin[] = creationsFromJoin.map((c: any) => ({
                         pinId: c.id.toString(),
                         imageUrl: c.image_url,
                         title: c.title,
                         creatorId: c.user_id,
+                        creatorUsername: c.profiles?.username || '匿名使用者',
+                        description: c.description,
                         sourceType: 'USER_CREATION',
                         editorData: c.editor_data,
                         aspectRatio: 0.75,
+                        likeCount: c.like_count || 0,
                     }));
                     setDisplayPins(mappedPins.reverse()); // Show newest first
                 } else {

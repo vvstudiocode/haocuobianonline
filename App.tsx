@@ -104,6 +104,7 @@ const AppContent = () => {
     const [notificationSettings, setNotificationSettings] = useStorage(NOTIFICATION_SETTINGS_KEY, { enabled: true, time: '06:00' });
     const [accessibilitySettings, setAccessibilitySettings] = useStorage<AccessibilitySettings>(ACCESSIBILITY_SETTINGS_KEY, { fontSize: 'largest', highContrast: false });
     const [pinToSave, setPinToSave] = useState<Pin | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
     const userProfileData = useUserProfile();
     const navigationData = useNavigation();
@@ -353,8 +354,7 @@ const AppContent = () => {
             return;
         }
 
-        // TODO: Implement a proper loading indicator
-        alert('正在儲存您的作品，請稍候...');
+        setIsSaving(true);
 
         try {
             // 1. Convert data URL to Blob
@@ -421,6 +421,8 @@ const AppContent = () => {
         } catch (error: any) {
             console.error('儲存作品失敗:', error);
             alert(`儲存作品失敗: ${getErrorMessage(error)}`);
+        } finally {
+            setIsSaving(false);
         }
     }, [user, navigationData, processAchievement, setFinalImage, setShowSuccessModal]);
     
@@ -693,7 +695,13 @@ const AppContent = () => {
                     onClose: () => setNewlyUnlocked(prev => prev.slice(1)),
                     onShare: shareImage
                 }),
-                pinToSave && React.createElement(SaveToBoardModal, null)
+                pinToSave && React.createElement(SaveToBoardModal, null),
+                isSaving && React.createElement('div', { className: 'loading-overlay' },
+                    React.createElement('div', { className: 'loading-content' },
+                        React.createElement('div', { className: 'spinner' }),
+                        React.createElement('span', null, '儲存中...')
+                    )
+                )
             )
         )
     );
