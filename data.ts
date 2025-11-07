@@ -110,6 +110,9 @@ export const ACHIEVEMENTS_KEY = 'hucuobian_achievements_v2';
 export const NOTIFICATION_SETTINGS_KEY = 'hucuobian_notification_settings_v1';
 export const ACCESSIBILITY_SETTINGS_KEY = 'hucuobian_accessibility_settings_v1';
 export const MY_FAVORITES_BOARD_NAME = '我的最愛';
+// FIX: Add and export `MY_CREATIONS_BOARD_NAME` constant to centralize board naming and resolve import error in AuthContext.
+export const MY_CREATIONS_BOARD_NAME = '我的作品';
+
 
 // --- 【重要更新】 ---
 // 為了配合資料庫 id 欄位升級為 uuid，這裡提供兩個固定的、有效的 UUID。

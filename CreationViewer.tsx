@@ -34,6 +34,7 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
         handleToggleFavorite,
         handleTabSelect,
         openCreatorProfile,
+        openSaveModal,
     } = useAppContext();
     const { user } = useAuth();
 
@@ -174,6 +175,13 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
             downloadImage(currentPin.imageUrl);
         }
     };
+
+    const handleSave = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (currentPin) {
+            openSaveModal(currentPin);
+        }
+    };
     
     const handleEdit = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -248,6 +256,9 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
     const downloadIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" }, 
         React.createElement('path', { d: "M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" })
     );
+    const saveIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
+        React.createElement('path', { d: "M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 15l-5-2.18L7 18V5h10v13z" })
+    );
     const removeFromBoardIcon = React.createElement('svg', { xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "currentColor" },
         React.createElement('path', { d: "M19 13H5v-2h14v2z" })
     );
@@ -275,8 +286,9 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
     );
 
     const canEdit = viewerSource?.type === 'board' || currentPin?.sourceType === 'USER_CREATION' || currentPin?.sourceType === 'STATIC_IMAGE';
-    const canDelete = currentPin?.creatorId !== 'official';
+    const canDelete = currentPin?.creatorId !== 'official' && currentPin?.creatorId === user?.id;
     const canRemoveFromBoard = viewerSource?.type === 'board';
+    const canSave = currentPin?.creatorId === 'official' || currentPin?.sourceType === 'USER_CREATION';
 
     // FIX: Extracted props for the favorite button to a variable to bypass TypeScript's excess property checking error.
     const favoriteButtonProps = {
@@ -289,6 +301,7 @@ const CreationViewer = ({ onClose, onDelete }: CreationViewerProps) => {
     return React.createElement('div', { className: 'modal-overlay viewer-overlay', onClick: handleClose },
         React.createElement('div', { className: `viewer-header` },
             React.createElement('div', { className: 'viewer-actions' },
+                canSave && React.createElement('button', { onClick: handleSave, 'aria-label': 'Save to board', title: '儲存到圖版' }, saveIcon),
                 React.createElement('button', { onClick: handleDownload, 'aria-label': 'Download', title: '下載', disabled: !currentPin }, downloadIcon),
                 React.createElement('button', { onClick: handleShare, 'aria-label': 'Share', title: '分享', disabled: !currentPin }, shareIcon),
                 canRemoveFromBoard && React.createElement('button', { className: 'remove-from-board', onClick: handleRemoveFromBoard, 'aria-label': 'Remove from Board', title: '從圖版移除' }, removeFromBoardIcon),

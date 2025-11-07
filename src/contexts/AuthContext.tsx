@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 import { Session, User, Profile } from '../types';
 import { Capacitor } from '@capacitor/core';
+import { MY_CREATIONS_BOARD_ID, MY_CREATIONS_BOARD_NAME, MY_FAVORITES_BOARD_ID, MY_FAVORITES_BOARD_NAME } from '../../data';
 
 interface AuthContextType {
     session: Session | null;
@@ -21,13 +22,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [profile, setProfile] = useState<Profile | null>(null);
     const [loading, setLoading] = useState(true);
 
+    // --- NEW: Function to ensure default boards exist for a user ---
+    const ensureDefaultBoards = async (userId: string) => {
+        try {
+            // FIX: Use imported constants for board names to improve maintainability and consistency.
+            const boardsToEnsure = [
+                { id: MY_CREATIONS_BOARD_ID, name: MY_CREATIONS_BOARD_NAME },
+                { id: MY_FAVORITES_BOARD_ID, name: MY_FAVORITES_BOARD_NAME }
+            ];
+
+            // Check which boards already exist
+            const { data: existingBoards, error: checkError } = await supabase
+                .from('boards')
+                .select('id')
+                .eq('user_id', userId)
+                .in('id', [MY_CREATIONS_BOARD_ID, MY_FAVORITES_BOARD_ID]);
+
+            if (checkError) throw checkError;
+
+            const existingBoardIds = existingBoards.map(b => b.id);
+            const boardsToCreate = boardsToEnsure.filter(b => !existingBoardIds.includes(b.id));
+
+            if (boardsToCreate.length > 0) {
+                const newBoardsData = boardsToCreate.map(b => ({
+                    id: b.id,
+                    name: b.name,
+                    user_id: userId,
+                }));
+
+                const { error: insertError } = await supabase
+                    .from('boards')
+                    .insert(newBoardsData);
+
+                if (insertError) throw insertError;
+                console.log('Successfully created default boards:', newBoardsData.map(b => b.name).join(', '));
+            }
+
+        } catch (error) {
+            console.error('Error ensuring default boards:', error);
+            // We don't alert here to not disrupt the user's login experience.
+            // RLS might prevent creation, which needs to be fixed via SQL.
+        }
+    };
+
+
     useEffect(() => {
         setLoading(true);
         // FIX: The original destructuring was fragile and could crash if the API response
         // structure was unexpected. This safer approach assigns the whole result first.
         const authStateChange = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
-            setUser(session?.user ?? null);
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            
+            // --- NEW: Trigger default board creation on login ---
+            if (currentUser) {
+                ensureDefaultBoards(currentUser.id);
+            }
+            
             setLoading(false);
         });
 
