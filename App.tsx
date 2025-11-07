@@ -57,6 +57,18 @@ interface AccessibilitySettings {
 
 const { useCallback, useEffect, useState } = React;
 
+const getErrorMessage = (error: any): string => {
+    if (typeof error === 'string') return error;
+    if (error && typeof error.message === 'string') return error.message;
+    try {
+        // Attempt to extract a more specific message from Supabase errors
+        if (error && error.details) return error.details;
+        return JSON.stringify(error);
+    } catch {
+        return 'An unknown error occurred.';
+    }
+};
+
 const urlToBase64 = (url: string): Promise<string> => {
     return new Promise(async (resolve, reject) => {
         if (url.startsWith('data:image')) {
@@ -289,7 +301,7 @@ const AppContent = () => {
              const errorMessage = (error && error.message) ? String(error.message) : '';
             if (error.name !== 'AbortError' && !errorMessage.toLowerCase().includes('cancel')) {
                  console.error('分享失敗:', error);
-                 alert(`分享失敗: ${errorMessage || '請稍後再試。'}`);
+                 alert(`分享失敗: ${getErrorMessage(error)}`);
             }
         }
     }, [processAchievement, navigationData]);
@@ -317,7 +329,7 @@ const AppContent = () => {
             navigationData.handleGoHomeFromModal();
         } catch (error: any) {
             console.error('下載失敗:', error);
-            alert(`下載失敗: ${error.message || '請確認您已授權App儲存照片的權限。'}`);
+            alert(`下載失敗: ${getErrorMessage(error)}`);
         }
     }, [navigationData]);
 
@@ -351,7 +363,7 @@ const AppContent = () => {
             // 2. Upload image to Supabase Storage
             const fileName = `${user.id}/${Date.now()}.jpeg`;
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('CREATION-IMAGES')
+                .from('creation-images')
                 .upload(fileName, blob, {
                     cacheControl: '3600',
                     upsert: false,
@@ -364,7 +376,7 @@ const AppContent = () => {
 
             // 3. Get public URL
             const { data: urlData } = supabase.storage
-                .from('CREATION-IMAGES')
+                .from('creation-images')
                 .getPublicUrl(uploadData.path);
             
             const imageUrl = urlData.publicUrl;
@@ -406,7 +418,7 @@ const AppContent = () => {
             }
         } catch (error: any) {
             console.error('儲存作品失敗:', error);
-            alert(`儲存作品失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+            alert(`儲存作品失敗: ${getErrorMessage(error)}`);
         }
     }, [user, navigationData, processAchievement, setFinalImage, setShowSuccessModal]);
     
@@ -433,9 +445,9 @@ const AppContent = () => {
             
             // 2. Delete the image from Storage
             const imageUrl = creation.image_url;
-            const path = new URL(imageUrl).pathname.split('/CREATION-IMAGES/')[1];
+            const path = new URL(imageUrl).pathname.split('/creation-images/')[1];
             if (path) {
-                const { error: storageError } = await supabase.storage.from('CREATION-IMAGES').remove([path]);
+                const { error: storageError } = await supabase.storage.from('creation-images').remove([path]);
                 if (storageError) console.error('刪除雲端圖片失敗:', storageError.message); // Log but continue
             }
             
@@ -453,7 +465,7 @@ const AppContent = () => {
             // We can add a mechanism to trigger a refresh on the board/profile screen here
         } catch (error: any) {
             console.error('刪除作品失敗:', error);
-            alert(`刪除作品失敗: ${error.message}`);
+            alert(`刪除作品失敗: ${getErrorMessage(error)}`);
         }
     };
 
@@ -470,7 +482,7 @@ const AppContent = () => {
             navigationData.setShowCreationViewer(false);
         } catch (error: any) {
             console.error('從圖版移除 Pin 失敗:', error);
-            alert(`從圖版移除失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+            alert(`從圖版移除失敗: ${getErrorMessage(error)}`);
         }
     }, [user, navigationData]);
 
@@ -495,20 +507,20 @@ const AppContent = () => {
 
         const { data, error } = await supabase
             .from('boards')
-            .insert({ name: boardName.trim() })
+            .insert({ name: boardName.trim(), user_id: user.id })
             .select('id')
             .single();
 
         if (error) {
             console.error('建立圖版失敗:', error);
-            alert(`建立圖版失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+            alert(`建立圖版失敗: ${getErrorMessage(error)}`);
             throw error;
         }
 
         if (!data?.id) {
             const creationError = new Error('Board creation returned no ID.');
             console.error(creationError);
-            alert(`建立圖版失敗: ${creationError.message}`);
+            alert(`建立圖版失敗: ${getErrorMessage(creationError)}`);
             throw creationError;
         }
         
@@ -546,7 +558,7 @@ const AppContent = () => {
 
         } catch (error: any) {
             console.error('儲存 Pin 失敗:', error);
-            alert(`儲存失敗: ${error.message || '該 Pin 可能已存在於圖版中。'}`);
+            alert(`儲存失敗: ${getErrorMessage(error)}`);
         }
     }, [user]);
 
@@ -576,7 +588,7 @@ const AppContent = () => {
             }
         } catch (error: any) {
             console.error('切換最愛狀態失敗:', error);
-            alert(`操作失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+            alert(`操作失敗: ${getErrorMessage(error)}`);
         }
     }, [user, handleSavePin, processAchievement]);
 
@@ -591,7 +603,7 @@ const AppContent = () => {
             if (error) throw error;
         } catch (error: any) {
             console.error('重新命名圖版失敗:', error);
-            alert(`重新命名失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+            alert(`重新命名失敗: ${getErrorMessage(error)}`);
         }
     }, [user]);
 
@@ -606,7 +618,7 @@ const AppContent = () => {
             if (error) throw error;
         } catch (error: any) {
              console.error('清除最愛失敗:', error);
-             alert(`清除失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
+             alert(`清除失敗: ${getErrorMessage(error)}`);
         }
     }, [user]);
     
