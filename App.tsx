@@ -1,3 +1,4 @@
+
 /**
  * @file App.tsx
  * @description
@@ -385,9 +386,9 @@ const AppContent = () => {
             const { data: creationData, error: insertError } = await supabase
                 .from('creations')
                 .insert({
-                    user_id: user.id, // <-- SOLUTION: Explicitly add user_id
+                    user_id: user.id,
                     title: title.trim() || '我的創作',
-                    description: description.trim() || null,
+                    description: description.trim() || '',
                     image_url: imageUrl,
                     is_public: isPublic,
                     editor_data: metadata.editorData,
