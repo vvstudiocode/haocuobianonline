@@ -363,7 +363,7 @@ const AppContent = () => {
             // 2. Upload image to Supabase Storage
             const fileName = `${user.id}/${Date.now()}.jpeg`;
             const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('creation-images')
+                .from('CREATION-IMAGES')
                 .upload(fileName, blob, {
                     cacheControl: '3600',
                     upsert: false,
@@ -376,7 +376,7 @@ const AppContent = () => {
 
             // 3. Get public URL
             const { data: urlData } = supabase.storage
-                .from('creation-images')
+                .from('CREATION-IMAGES')
                 .getPublicUrl(uploadData.path);
             
             const imageUrl = urlData.publicUrl;
@@ -445,9 +445,9 @@ const AppContent = () => {
             
             // 2. Delete the image from Storage
             const imageUrl = creation.image_url;
-            const path = new URL(imageUrl).pathname.split('/creation-images/')[1];
+            const path = new URL(imageUrl).pathname.split('/CREATION-IMAGES/')[1];
             if (path) {
-                const { error: storageError } = await supabase.storage.from('creation-images').remove([path]);
+                const { error: storageError } = await supabase.storage.from('CREATION-IMAGES').remove([path]);
                 if (storageError) console.error('刪除雲端圖片失敗:', storageError.message); // Log but continue
             }
             
