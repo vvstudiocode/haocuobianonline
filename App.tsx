@@ -385,6 +385,7 @@ const AppContent = () => {
             const { data: creationData, error: insertError } = await supabase
                 .from('creations')
                 .insert({
+                    user_id: user.id, // <-- SOLUTION: Explicitly add user_id
                     title: title.trim() || '我的創作',
                     description: description.trim() || null,
                     image_url: imageUrl,
