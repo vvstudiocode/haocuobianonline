@@ -20,7 +20,7 @@ import { supabase } from './src/supabaseClient.ts';
 const { useState, useEffect } = React;
 
 const ProfileScreen = () => {
-    const { userProfile, processAchievement, handleTabSelect, openBoard } = useAppContext();
+    const { userProfile, processAchievement, handleTabSelect, openBoard, handleCreateBoard } = useAppContext();
     const { user, profile, logout, updateProfile } = useAuth();
     const { points, tasks } = userProfile;
     const { level, name: levelName, icon: levelIcon, nextLevel } = getLevelInfo(points);
@@ -79,27 +79,21 @@ const ProfileScreen = () => {
     };
     
     const handleConfirmCreateBoard = async () => {
-        if (!newBoardName.trim() || !user) return;
-
-        const { data, error } = await supabase
-            .from('boards')
-            .insert({ name: newBoardName.trim() })
-            .select()
-            .single();
-
-        if (error) {
-            console.error('Error creating board:', error);
-            alert('建立圖版失敗。');
-        } else if (data) {
+        if (!newBoardName.trim()) return;
+        try {
+            const newBoardId = await handleCreateBoard(newBoardName.trim());
             const newBoard: Board = {
-                boardId: data.id,
-                name: data.name,
-                coverPinUrl: data.cover_pin_url,
+                boardId: newBoardId,
+                name: newBoardName.trim(),
+                coverPinUrl: undefined,
                 pinIds: []
             };
             setProfileBoards(prev => [newBoard, ...prev]);
             setNewBoardName('');
             setIsCreatingBoard(false);
+        } catch (error) {
+            // Error is already alerted by handleCreateBoard from the context
+            console.error("Failed to create board from profile screen:", error);
         }
     };
 

@@ -289,7 +289,7 @@ const AppContent = () => {
              const errorMessage = (error && error.message) ? String(error.message) : '';
             if (error.name !== 'AbortError' && !errorMessage.toLowerCase().includes('cancel')) {
                  console.error('分享失敗:', error);
-                 alert('分享失敗，請稍後再試。');
+                 alert(`分享失敗: ${errorMessage || '請稍後再試。'}`);
             }
         }
     }, [processAchievement, navigationData]);
@@ -315,9 +315,9 @@ const AppContent = () => {
                 link.click();
             }
             navigationData.handleGoHomeFromModal();
-        } catch (error) {
+        } catch (error: any) {
             console.error('下載失敗:', error);
-            alert('下載失敗。請確認您已授權App儲存照片的權限。');
+            alert(`下載失敗: ${error.message || '請確認您已授權App儲存照片的權限。'}`);
         }
     }, [navigationData]);
 
@@ -404,9 +404,9 @@ const AppContent = () => {
                      processAchievement('use_font', { fontFamily: font });
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('儲存作品失敗:', error);
-            alert('儲存作品失敗，請稍後再試。');
+            alert(`儲存作品失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
         }
     }, [user, navigationData, processAchievement, setFinalImage, setShowSuccessModal]);
     
@@ -468,9 +468,9 @@ const AppContent = () => {
                 .eq('user_id', user.id);
             if (error) throw error;
             navigationData.setShowCreationViewer(false);
-        } catch (error) {
+        } catch (error: any) {
             console.error('從圖版移除 Pin 失敗:', error);
-            alert('從圖版移除失敗。');
+            alert(`從圖版移除失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
         }
     }, [user, navigationData]);
 
@@ -501,14 +501,14 @@ const AppContent = () => {
 
         if (error) {
             console.error('建立圖版失敗:', error);
-            alert('建立圖版失敗。');
+            alert(`建立圖版失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
             throw error;
         }
 
         if (!data?.id) {
             const creationError = new Error('Board creation returned no ID.');
             console.error(creationError);
-            alert('建立圖版失敗。');
+            alert(`建立圖版失敗: ${creationError.message}`);
             throw creationError;
         }
         
@@ -544,9 +544,9 @@ const AppContent = () => {
             setPinToSave(null);
             alert('成功儲存！');
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('儲存 Pin 失敗:', error);
-            alert('儲存失敗，該 Pin 可能已存在於圖版中。');
+            alert(`儲存失敗: ${error.message || '該 Pin 可能已存在於圖版中。'}`);
         }
     }, [user]);
 
@@ -574,9 +574,9 @@ const AppContent = () => {
                 await handleSavePin(pin, MY_FAVORITES_BOARD_ID);
                 processAchievement('add_favorite');
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('切換最愛狀態失敗:', error);
-            alert('操作失敗，請稍後再試。');
+            alert(`操作失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
         }
     }, [user, handleSavePin, processAchievement]);
 
@@ -589,9 +589,9 @@ const AppContent = () => {
                 .eq('id', boardId)
                 .eq('user_id', user.id);
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
             console.error('重新命名圖版失敗:', error);
-            alert('重新命名失敗。');
+            alert(`重新命名失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
         }
     }, [user]);
 
@@ -604,9 +604,9 @@ const AppContent = () => {
                 .eq('board_id', MY_FAVORITES_BOARD_ID)
                 .eq('user_id', user.id);
             if (error) throw error;
-        } catch (error) {
+        } catch (error: any) {
              console.error('清除最愛失敗:', error);
-             alert('清除失敗。');
+             alert(`清除失敗: ${error.message || '未知錯誤，請檢查主控台。'}`);
         }
     }, [user]);
     
